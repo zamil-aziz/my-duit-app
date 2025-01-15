@@ -36,7 +36,7 @@ export default function LandingPage() {
                         <BarChart2 className='w-6 h-6 text-blue-500' />
                         <span className='text-lg font-bold'>Expence Tracker</span>
                     </div>
-                    <Link href='/dashboard'>
+                    <Link href='/login'>
                         <Button variant='ghost' className='text-sm'>
                             Sign In
                         </Button>
@@ -52,7 +52,7 @@ export default function LandingPage() {
                         Simplify your financial life with our intuitive expense tracking app. Perfect for individuals
                         and small businesses.
                     </p>
-                    <Link href='/dashboard'>
+                    <Link href='/signup'>
                         <Button className='bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 rounded-lg'>
                             Get Started Free
                             <ArrowRight className='ml-2 w-4 h-4' />
@@ -61,7 +61,7 @@ export default function LandingPage() {
 
                     {/* Mobile App Preview */}
                     <div className='mt-12 relative'>
-                        <div className='absolute inset-0 bg-gradient-to-t from-gray-950 to-transparent bottom-[-20px] pointer-events-none' />
+                        <div className='absolute inset-0 bg-gradient-to-t from-gray-950 to-transparent bottom-[] pointer-events-none' />
                         <div className='relative mx-auto w-64 h-[500px] bg-gray-900 rounded-[3rem] p-4 border-4 border-gray-800'>
                             <div className='h-full bg-gray-800 rounded-[2.3rem] overflow-hidden'>
                                 <div className='p-4'>
@@ -106,7 +106,7 @@ export default function LandingPage() {
             <section className='px-4 py-12 text-center border-t border-gray-800/50'>
                 <h2 className='text-xl font-semibold mb-2'>Ready to Start?</h2>
                 <p className='text-gray-400 mb-6 text-sm'>Join thousands of users managing their finances better</p>
-                <Link href='/dashboard'>
+                <Link href='/signup'>
                     <Button className='bg-blue-600 hover:bg-blue-700 text-white'>Create Free Account</Button>
                 </Link>
             </section>
