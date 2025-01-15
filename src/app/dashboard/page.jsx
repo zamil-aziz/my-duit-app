@@ -5,7 +5,6 @@ import { TransactionList } from '@/components/dashboard/TransactionList';
 import { BarChart2, Menu } from 'lucide-react';
 
 export default function DashboardPage() {
-    // Define the data inside the component
     const summaryData = {
         totalSpent: '2,547.63',
         monthlyAverage: '849.21',
@@ -47,16 +46,16 @@ export default function DashboardPage() {
             {/* Main Content */}
             <div className='flex-1 p-4 lg:p-8'>
                 {/* Header Section */}
-                <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 lg:mb-8'>
+                <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4'>
                     <div>
                         <h1 className='text-2xl lg:text-3xl font-bold text-white mb-1'>Welcome back, Alex</h1>
                         <p className='text-sm lg:text-base text-gray-400'>Track your expenses and manage your budget</p>
                     </div>
                 </div>
 
-                {/* Stats Scroll Container for Mobile */}
-                <div className='overflow-x-auto pb-4 mb-6 -mx-4 px-4 sm:overflow-visible sm:pb-0 sm:mx-0 sm:px-0'>
-                    <div className='flex sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-4 min-w-[640px] sm:min-w-0'>
+                {/* Stats Container */}
+                <div className='overflow-x-auto pb-4 -mx-4 px-4 mb-6'>
+                    <div className='flex gap-3 min-w-max'>
                         <StatsCard
                             title='Total Spent'
                             value={summaryData.totalSpent}
