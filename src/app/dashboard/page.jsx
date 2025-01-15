@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { StatsCard } from '@/components/dashboard/StatsCard';
 import { QuickAddExpenseSection } from '@/components/dashboard/QuickAddExpenseSection';
-import { TransactionList } from '@/components/dashboard/TransactionList';
+import { TransactionSection } from '@/components/dashboard/TransactionSection';
 import { BarChart2, Menu } from 'lucide-react';
 import { summaryData, recentTransactions } from '@/constants/data';
 
@@ -12,7 +12,7 @@ export default function DashboardPage() {
             <div className='lg:hidden bg-gray-900 p-4 flex items-center justify-between'>
                 <div className='flex items-center space-x-2'>
                     <BarChart2 className='w-6 h-6 text-blue-500' />
-                    <span className='text-lg font-bold text-white'>Finance</span>
+                    <span className='text-lg font-bold text-white'>Expence Tracker</span>
                 </div>
                 <Button variant='ghost' size='icon' className='text-gray-400'>
                     <Menu className='w-5 h-5' />
@@ -76,7 +76,7 @@ export default function DashboardPage() {
                         <QuickAddExpenseSection />
                     </div>
                     <div className='lg:col-span-3'>
-                        <TransactionList transactions={recentTransactions} />
+                        <TransactionSection transactions={recentTransactions} />
                     </div>
                 </div>
             </div>
