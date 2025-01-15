@@ -1,18 +1,8 @@
-'use client';
-
-import React from 'react';
 import { Wallet, Calendar, Tag } from 'lucide-react';
 
-// Import UI components
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-
-// Import custom components
 import { StatsCard } from '@/components/dashboard/StatsCard';
-import { QuickAddExpense } from '@/components/dashboard/QuickAddExpense';
 import { TransactionList } from '@/components/dashboard/TransactionList';
+import { QuickAddExpenseSection } from '@/components/dashboard/QuickAddexpenseSection';
 
 export default function DashboardPage() {
     // In a real application, this would likely come from an API or state management
@@ -61,7 +51,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Quick Add Form Section */}
-            <QuickAddExpense onSubmit={handleAddExpense} />
+            <QuickAddExpenseSection />
 
             {/* Transactions List Section */}
             <TransactionList transactions={recentTransactions} />
