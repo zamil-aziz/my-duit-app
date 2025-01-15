@@ -6,14 +6,7 @@ const ICONS = {
     Tag,
 };
 
-export const StatsCard = ({
-    title = 'Total Revenue',
-    value = '12,345',
-    trend,
-    trendText,
-    iconName = 'Wallet',
-    gradient = 'from-blue-500 to-purple-500',
-}) => {
+export const StatsCard = ({ title, value, trend, trendText, iconName, gradient }) => {
     const trendColor = trend === 'up' ? 'text-green-400' : 'text-red-400';
     const Icon = trend === 'up' ? ArrowUp : ArrowDown;
     const IconComponent = ICONS[iconName] || Wallet;
@@ -40,7 +33,7 @@ export const StatsCard = ({
 
                 {/* Bottom Row: Value and Title */}
                 <div>
-                    <div className='text-sm font-semibold text-white mb-0.5'>${value}</div>
+                    <div className='text-sm font-semibold text-white mb-0.5'>RM {value}</div>
                     <div className='text-xs text-gray-400'>{title}</div>
                 </div>
             </div>
