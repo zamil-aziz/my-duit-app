@@ -3,20 +3,9 @@ import { StatsCard } from '@/components/dashboard/StatsCard';
 import { QuickAddExpenseSection } from '@/components/dashboard/QuickAddExpenseSection';
 import { TransactionList } from '@/components/dashboard/TransactionList';
 import { BarChart2, Menu } from 'lucide-react';
+import { summaryData, recentTransactions } from '@/constants/data';
 
 export default function DashboardPage() {
-    const summaryData = {
-        totalSpent: '2,547.63',
-        monthlyAverage: '849.21',
-        largestExpense: '520.00',
-    };
-
-    const recentTransactions = [
-        { id: 1, description: 'Grocery Shopping', amount: '156.32', date: 'Today', category: 'Food' },
-        { id: 2, description: 'Netflix Subscription', amount: '15.99', date: 'Yesterday', category: 'Entertainment' },
-        { id: 3, description: 'Gas Station', amount: '45.00', date: '2 days ago', category: 'Transport' },
-    ];
-
     return (
         <div className='flex flex-col lg:flex-row min-h-screen bg-gray-950'>
             {/* Mobile Header */}
