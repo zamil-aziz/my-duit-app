@@ -1,7 +1,6 @@
 export const summaryData = {
     totalSpent: '2,547.63',
     monthlyAverage: '849.21',
-    largestExpense: '520.00',
 };
 
 export const recentTransactions = [
