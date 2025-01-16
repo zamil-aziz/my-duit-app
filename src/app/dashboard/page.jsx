@@ -12,11 +12,11 @@ export default function DashboardPage() {
             <div className='lg:hidden bg-gray-900 p-4 flex items-center justify-between'>
                 <div className='flex items-center space-x-2'>
                     <BarChart2 className='w-6 h-6 text-blue-500' />
-                    <span className='text-lg font-bold text-white'>Expence Tracker</span>
+                    <span className='text-lg font-bold text-white'>MyDuitApp</span>
                 </div>
-                <Button variant='ghost' size='icon' className='text-gray-400'>
+                {/* <Button variant='ghost' size='icon' className='text-gray-400'>
                     <Menu className='w-5 h-5' />
-                </Button>
+                </Button> */}
             </div>
 
             {/* Desktop Sidebar */}

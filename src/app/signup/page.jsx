@@ -6,8 +6,11 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { BarChart2, AlertCircle, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 export default function SignUpPage() {
+    const router = useRouter();
+
     // Form state management
     const [formData, setFormData] = useState({
         email: '',
@@ -19,6 +22,7 @@ export default function SignUpPage() {
     // UI state management
     const [isLoading, setIsLoading] = useState(false);
     const [errors, setErrors] = useState({});
+    const [successMessage, setSuccessMessage] = useState('');
 
     // Handle input changes
     const handleChange = e => {
@@ -69,6 +73,10 @@ export default function SignUpPage() {
     const handleSubmit = async e => {
         e.preventDefault();
 
+        // Reset error and success states
+        setErrors({});
+        setSuccessMessage('');
+
         const validationErrors = validateForm();
         if (Object.keys(validationErrors).length > 0) {
             setErrors(validationErrors);
@@ -77,14 +85,34 @@ export default function SignUpPage() {
 
         setIsLoading(true);
 
-        // Simulate API call - replace with your actual signup logic
         try {
-            await new Promise(resolve => setTimeout(resolve, 1500));
-            // Handle successful signup
-            console.log('Sign up successful!', formData);
-            // Redirect to dashboard or show success message
+            const response = await fetch('/api/auth/signup', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    email: formData.email,
+                    password: formData.password,
+                    businessName: formData.businessName,
+                }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to create account');
+            }
+
+            // Show success message and redirect
+            setSuccessMessage('Account created successfully!');
+            setTimeout(() => {
+                router.push('/login?signup=success');
+            }, 1500);
         } catch (error) {
-            setErrors({ submit: 'Failed to create account. Please try again.' });
+            setErrors({
+                submit: error.message || 'Failed to create account. Please try again.',
+            });
         } finally {
             setIsLoading(false);
         }
@@ -96,7 +124,7 @@ export default function SignUpPage() {
             <nav className='flex items-center justify-between p-4 border-b border-gray-800/50'>
                 <Link href='/' className='flex items-center space-x-2'>
                     <BarChart2 className='w-6 h-6 text-blue-500' />
-                    <span className='text-lg font-bold text-white'>Expence Tracker</span>
+                    <span className='text-lg font-bold text-white'>Expense Tracker</span>
                 </Link>
                 <Link href='/login'>
                     <Button variant='ghost' className='text-sm text-gray-400 hover:text-white'>
@@ -113,6 +141,13 @@ export default function SignUpPage() {
                         <h1 className='text-2xl font-bold text-white mb-2'>Create your account</h1>
                         <p className='text-gray-400 text-sm'>Start tracking your expenses in minutes</p>
                     </div>
+
+                    {/* Success Message */}
+                    {successMessage && (
+                        <Alert className='bg-green-900/50 border-green-900 text-green-300'>
+                            <AlertDescription>{successMessage}</AlertDescription>
+                        </Alert>
+                    )}
 
                     {/* Form */}
                     <form onSubmit={handleSubmit} className='space-y-6'>
