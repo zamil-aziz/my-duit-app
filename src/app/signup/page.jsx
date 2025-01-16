@@ -124,7 +124,7 @@ export default function SignUpPage() {
             <nav className='flex items-center justify-between p-4 border-b border-gray-800/50'>
                 <Link href='/' className='flex items-center space-x-2'>
                     <BarChart2 className='w-6 h-6 text-blue-500' />
-                    <span className='text-lg font-bold text-white'>Expense Tracker</span>
+                    <span className='text-lg font-bold text-white'>MyDuitApp</span>
                 </Link>
                 <Link href='/login'>
                     <Button variant='ghost' className='text-sm text-gray-400 hover:text-white'>

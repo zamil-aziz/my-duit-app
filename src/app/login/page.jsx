@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { BarChart2, AlertCircle, Loader2 } from 'lucide-react';
 import Link from 'next/link';
+import ForgotPassword from '@/components/login/ForgotPassword';
 
 export default function LoginPage() {
     // We manage form state with a single object to keep related data together
@@ -84,7 +85,7 @@ export default function LoginPage() {
             <nav className='flex items-center justify-between p-4 border-b border-gray-800/50'>
                 <Link href='/' className='flex items-center space-x-2'>
                     <BarChart2 className='w-6 h-6 text-blue-500' />
-                    <span className='text-lg font-bold text-white'>Expence Tracker</span>
+                    <span className='text-lg font-bold text-white'>MyDuitApp</span>
                 </Link>
                 <Link href='/signup'>
                     <Button variant='ghost' className='text-sm text-gray-400 hover:text-white'>
@@ -125,13 +126,11 @@ export default function LoginPage() {
 
                         {/* Password input with forgot password link */}
                         <div className='space-y-2'>
-                            <div className='flex items-center justify-between'>
+                            <div className='flex justify-between items-center'>
                                 <Label htmlFor='password' className='text-gray-300'>
                                     Password
                                 </Label>
-                                <Link href='/forgot-password' className='text-sm text-blue-500 hover:text-blue-400'>
-                                    Forgot password?
-                                </Link>
+                                <ForgotPassword />
                             </div>
                             <Input
                                 id='password'
