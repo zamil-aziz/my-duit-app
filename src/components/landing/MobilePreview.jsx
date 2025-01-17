@@ -10,7 +10,7 @@ export function MobilePreview() {
                     <div className='p-4'>
                         <div className='flex items-center space-x-2 mb-6'>
                             <Smartphone className='w-5 h-5 text-blue-500' />
-                            <span className='text-sm font-medium'>Mobile Experience</span>
+                            <span className='text-sm font-medium'>Your Expenses</span>
                         </div>
                         <div className='space-y-4'>
                             {[1, 2, 3].map(item => (
