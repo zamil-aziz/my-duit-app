@@ -6,27 +6,30 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { BarChart2, AlertCircle, Loader2 } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import ForgotPassword from '@/components/login/ForgotPassword';
 
 export default function LoginPage() {
-    // We manage form state with a single object to keep related data together
+    const router = useRouter();
+
+    // Form state management
     const [formData, setFormData] = useState({
         email: '',
         password: '',
     });
 
-    // Separate state for UI feedback helps maintain clear separation of concerns
+    // UI state management
     const [isLoading, setIsLoading] = useState(false);
     const [errors, setErrors] = useState({});
 
-    // Unified change handler keeps code DRY and consistent
+    // Handle input changes
     const handleChange = e => {
         const { name, value } = e.target;
         setFormData(prev => ({
             ...prev,
             [name]: value,
         }));
-        // Clear errors when user starts typing to provide immediate feedback
+        // Clear error when user starts typing
         if (errors[name]) {
             setErrors(prev => ({
                 ...prev,
@@ -35,7 +38,7 @@ export default function LoginPage() {
         }
     };
 
-    // Form validation ensures data quality before submission
+    // Form validation
     const validateForm = () => {
         const newErrors = {};
 
@@ -52,10 +55,11 @@ export default function LoginPage() {
         return newErrors;
     };
 
-    // Handle form submission with proper error handling and loading states
+    // Handle form submission
     const handleSubmit = async e => {
         e.preventDefault();
 
+        // Validate form
         const validationErrors = validateForm();
         if (Object.keys(validationErrors).length > 0) {
             setErrors(validationErrors);
@@ -65,14 +69,32 @@ export default function LoginPage() {
         setIsLoading(true);
 
         try {
-            // Simulate API call - replace with your actual login logic
-            await new Promise(resolve => setTimeout(resolve, 1500));
-            // Handle successful login
-            console.log('Login successful!', formData);
-            // You would typically redirect to dashboard here
+            const response = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    email: formData.email,
+                    password: formData.password,
+                }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to sign in');
+            }
+
+            // Store auth data
+            localStorage.setItem('token', data.token);
+            localStorage.setItem('user', JSON.stringify(data.user));
+
+            // Redirect to dashboard
+            router.push('/dashboard');
         } catch (error) {
             setErrors({
-                submit: 'Invalid email or password. Please try again.',
+                submit: error.message || 'Invalid email or password. Please try again.',
             });
         } finally {
             setIsLoading(false);
@@ -81,7 +103,7 @@ export default function LoginPage() {
 
     return (
         <div className='min-h-screen bg-gray-950 flex flex-col'>
-            {/* Navigation bar maintains consistent branding */}
+            {/* Navigation */}
             <nav className='flex items-center justify-between p-4 border-b border-gray-800/50'>
                 <Link href='/' className='flex items-center space-x-2'>
                     <BarChart2 className='w-6 h-6 text-blue-500' />
@@ -94,18 +116,18 @@ export default function LoginPage() {
                 </Link>
             </nav>
 
-            {/* Main content area with centered form */}
+            {/* Main Content */}
             <div className='flex-1 flex flex-col items-center justify-center p-4'>
                 <div className='w-full max-w-md space-y-8'>
-                    {/* Welcome message sets context for returning users */}
+                    {/* Header */}
                     <div className='text-center'>
                         <h1 className='text-2xl font-bold text-white mb-2'>Welcome back</h1>
                         <p className='text-gray-400 text-sm'>Sign in to continue managing your expenses</p>
                     </div>
 
-                    {/* Login form with validation and error handling */}
+                    {/* Login Form */}
                     <form onSubmit={handleSubmit} className='space-y-6'>
-                        {/* Email input field */}
+                        {/* Email Field */}
                         <div className='space-y-2'>
                             <Label htmlFor='email' className='text-gray-300'>
                                 Email Address
@@ -124,7 +146,7 @@ export default function LoginPage() {
                             {errors.email && <p className='text-red-500 text-xs mt-1'>{errors.email}</p>}
                         </div>
 
-                        {/* Password input with forgot password link */}
+                        {/* Password Field */}
                         <div className='space-y-2'>
                             <div className='flex justify-between items-center'>
                                 <Label htmlFor='password' className='text-gray-300'>
@@ -146,7 +168,7 @@ export default function LoginPage() {
                             {errors.password && <p className='text-red-500 text-xs mt-1'>{errors.password}</p>}
                         </div>
 
-                        {/* Error alert for submission failures */}
+                        {/* Error Alert */}
                         {errors.submit && (
                             <Alert variant='destructive' className='bg-red-900/50 border-red-900 text-red-300'>
                                 <AlertCircle className='h-4 w-4' />
@@ -154,7 +176,7 @@ export default function LoginPage() {
                             </Alert>
                         )}
 
-                        {/* Submit button with loading state */}
+                        {/* Submit Button */}
                         <Button
                             type='submit'
                             disabled={isLoading}
@@ -171,7 +193,7 @@ export default function LoginPage() {
                         </Button>
                     </form>
 
-                    {/* Sign up link for new users */}
+                    {/* Sign Up Link */}
                     <p className='text-center text-sm text-gray-400'>
                         Don't have an account?{' '}
                         <Link href='/signup' className='text-blue-500 hover:text-blue-400'>
