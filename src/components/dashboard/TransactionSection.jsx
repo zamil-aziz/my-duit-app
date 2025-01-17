@@ -29,12 +29,19 @@ export function TransactionSection({ transactions: initialTransactions }) {
         setTransactions(prev => prev.filter(transaction => transaction.id !== deletedId));
     };
 
+    const handleTransactionUpdated = updatedTransaction => {
+        setTransactions(prev =>
+            prev.map(transaction => (transaction.id === updatedTransaction.id ? updatedTransaction : transaction))
+        );
+    };
+
     if (showAllTransactions) {
         return (
             <FullTransactionList
                 transactions={transactions}
                 onBack={() => setShowAllTransactions(false)}
                 onTransactionDeleted={handleTransactionDeleted}
+                onTransactionUpdated={handleTransactionUpdated}
             />
         );
     }
