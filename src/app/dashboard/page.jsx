@@ -6,10 +6,12 @@ import { QuickAddExpenseSection } from '@/components/dashboard/AddExpenseSection
 import { TransactionSection } from '@/components/dashboard/TransactionSection';
 import { BarChart2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import LoadingSpinner from '@/components/LoadingSpinner';
 
 export default function DashboardPage() {
     const router = useRouter();
     const [user, setUser] = useState(null);
+    const [isLoading, setIsLoading] = useState(false);
     const [data, setData] = useState({
         expenses: [],
         summary: {
@@ -19,7 +21,6 @@ export default function DashboardPage() {
         },
     });
 
-    // Move fetchData outside useEffect so it can be used elsewhere
     const fetchData = async () => {
         const token = localStorage.getItem('token');
         try {
@@ -74,8 +75,12 @@ export default function DashboardPage() {
         await fetchData(); // Refresh all data after adding new expense
     };
 
-    if (!user) {
-        return null; // or loading spinner
+    if (!user || isLoading) {
+        return (
+            <div className='min-h-screen bg-gray-950 flex items-center justify-center'>
+                <LoadingSpinner size='large' />
+            </div>
+        );
     }
 
     return (
@@ -86,6 +91,15 @@ export default function DashboardPage() {
                     <BarChart2 className='w-6 h-6 text-blue-500' />
                     <span className='text-lg font-bold text-white'>MyDuitApp</span>
                 </div>
+                <div className='flex'>
+                    <Button
+                        variant='ghost'
+                        className='w-full justify-start text-white hover:bg-gray-800'
+                        onClick={handleLogout}
+                    >
+                        Logout
+                    </Button>
+                </div>
             </div>
 
             {/* Desktop Sidebar */}
@@ -95,9 +109,6 @@ export default function DashboardPage() {
                     <span className='text-xl font-bold text-white'>Finance</span>
                 </div>
                 <nav className='space-y-2'>
-                    <Button variant='ghost' className='w-full justify-start text-white hover:bg-gray-800'>
-                        Dashboard
-                    </Button>
                     <Button
                         variant='ghost'
                         className='w-full justify-start text-white hover:bg-gray-800'
