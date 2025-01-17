@@ -289,7 +289,7 @@ export function FullTransactionList({ transactions, onBack, onTransactionDeleted
                                     />
                                 </div>
                             </div>
-                            <DialogFooter>
+                            <DialogFooter className='flex gap-1'>
                                 <Button
                                     variant='outline'
                                     onClick={() => setEditingTransaction(null)}
