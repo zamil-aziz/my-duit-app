@@ -34,7 +34,7 @@ export function FullTransactionList({ transactions, onBack }) {
                                         {transaction.description}
                                     </p>
                                 </div>
-                                <p className='text-[11px] text-white col-span-3 text-right'>RM{transaction.amount}</p>
+                                <p className='text-[11px] text-white col-span-3 text-right'>RM {transaction.amount}</p>
                             </div>
                         ))}
                     </div>

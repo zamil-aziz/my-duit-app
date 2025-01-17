@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { StatsCard } from '@/components/dashboard/StatsCard';
-import { QuickAddExpenseSection } from '@/components/dashboard/QuickAddExpenseSection';
+import { QuickAddExpenseSection } from '@/components/dashboard/AddExpenseSection';
 import { TransactionSection } from '@/components/dashboard/TransactionSection';
 import { BarChart2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
