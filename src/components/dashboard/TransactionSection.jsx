@@ -41,16 +41,15 @@ export function TransactionSection({ transactions }) {
                             key={transaction.id}
                             className='flex items-center p-3 rounded-lg bg-gray-800/50 hover:bg-gray-800 transition-colors duration-200'
                         >
-                            <div className='p-2 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 mr-3'>
-                                <Tag className='w-4 h-4 text-white' />
+                            <div className='flex-1 grid grid-cols-12 items-center'>
+                                <span className='text-sm font-medium text-white col-span-4 text-left'>
+                                    {transaction.description}
+                                </span>
+                                <span className='text-sm text-white col-span-4 text-left'>{`RM${transaction.amount}`}</span>
+                                <span className='text-sm text-gray-400 col-span-4 text-left'>
+                                    {formatDate(transaction.createdAt)}
+                                </span>
                             </div>
-                            <div className='flex-1 grid grid-cols-3 items-center'>
-                                <span className='text-sm font-medium text-white'>{transaction.description}</span>
-                                <span className='text-sm text-gray-400 text-center'>{`RM${transaction.amount}`}</span>
-                            </div>
-                            <span className='text-sm text-gray-400 text-right'>
-                                {formatDate(transaction.createdAt)}
-                            </span>
                         </div>
                     ))}
                 </div>

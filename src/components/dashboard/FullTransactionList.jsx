@@ -38,9 +38,9 @@ export function FullTransactionList({ transactions, onBack }) {
             <CardContent className='px-0'>
                 <div>
                     <div className='sticky top-0 grid grid-cols-12 gap-1 sm:gap-3 py-1 px-2 sm:px-3 bg-gray-900/90 backdrop-blur-sm border-b border-gray-800'>
-                        <p className='text-[10px] font-medium text-gray-500 col-span-3'>DATE</p>
-                        <p className='text-[10px] font-medium text-gray-500 col-span-6'>DESCRIPTION</p>
-                        <p className='text-[10px] font-medium text-gray-500 col-span-3 text-right'>AMOUNT</p>
+                        <p className='text-[10px] font-medium text-gray-500 col-span-6'>DATE</p>
+                        <p className='text-[10px] font-medium text-gray-500 col-span-4'>DESCRIPTION</p>
+                        <p className='text-[10px] font-medium text-gray-500 col-span-2'>AMOUNT</p>
                     </div>
                     <div className='max-h-[32rem] overflow-y-auto'>
                         {transactions.map(transaction => (
@@ -48,15 +48,13 @@ export function FullTransactionList({ transactions, onBack }) {
                                 key={transaction.id}
                                 className='grid grid-cols-12 items-center gap-1 sm:gap-3 py-1 px-2 sm:px-3 hover:bg-gray-800/50 transition-colors duration-200'
                             >
-                                <p className='text-[11px] text-gray-400 col-span-3 truncate'>
+                                <p className='text-[11px] text-gray-400 col-span-6 truncate'>
                                     {formatDate(transaction.createdAt)}
                                 </p>
-                                <div className='col-span-6 min-w-0'>
-                                    <p className='text-[11px] text-white truncate leading-relaxed'>
-                                        {transaction.description}
-                                    </p>
-                                </div>
-                                <p className='text-[11px] text-white col-span-3 text-right'>RM {transaction.amount}</p>
+                                <p className='text-[11px] text-white col-span-4 truncate leading-relaxed'>
+                                    {transaction.description}
+                                </p>
+                                <p className='text-[11px] text-white col-span-2'>RM {transaction.amount}</p>
                             </div>
                         ))}
                     </div>
