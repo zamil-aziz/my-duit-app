@@ -2,11 +2,11 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Tag } from 'lucide-react';
 import { FullTransactionList } from './FullTransactionList';
 
-export function TransactionSection({ transactions }) {
+export function TransactionSection({ transactions: initialTransactions }) {
     const [showAllTransactions, setShowAllTransactions] = useState(false);
+    const [transactions, setTransactions] = useState(initialTransactions);
 
     const formatDate = dateString => {
         const date = new Date(dateString);
@@ -25,8 +25,18 @@ export function TransactionSection({ transactions }) {
         return `${formattedDate}, ${formattedTime}`;
     };
 
+    const handleTransactionDeleted = deletedId => {
+        setTransactions(prev => prev.filter(transaction => transaction.id !== deletedId));
+    };
+
     if (showAllTransactions) {
-        return <FullTransactionList transactions={transactions} onBack={() => setShowAllTransactions(false)} />;
+        return (
+            <FullTransactionList
+                transactions={transactions}
+                onBack={() => setShowAllTransactions(false)}
+                onTransactionDeleted={handleTransactionDeleted}
+            />
+        );
     }
 
     return (
