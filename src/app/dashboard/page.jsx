@@ -11,7 +11,7 @@ import LoadingSpinner from '@/components/LoadingSpinner';
 export default function DashboardPage() {
     const router = useRouter();
     const [user, setUser] = useState(null);
-    const [isLoading, setIsLoading] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
     const [data, setData] = useState({
         expenses: [],
         summary: {
@@ -22,6 +22,7 @@ export default function DashboardPage() {
     });
 
     const fetchData = async () => {
+        setIsLoading(true);
         const token = localStorage.getItem('token');
         try {
             const response = await fetch('/api/expenses', {
@@ -35,10 +36,16 @@ export default function DashboardPage() {
             }
 
             const responseData = await response.json();
-            setData(responseData);
+            setData({
+                expenses: responseData.expenses,
+                summary: responseData.summary,
+            });
+            setUser(responseData.user);
         } catch (error) {
             console.error('Error fetching data:', error);
             // Handle error appropriately
+        } finally {
+            setIsLoading(false);
         }
     };
 

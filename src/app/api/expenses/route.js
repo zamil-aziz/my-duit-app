@@ -4,6 +4,22 @@ import jwt from 'jsonwebtoken';
 
 const prisma = new PrismaClient();
 
+function formatName(string) {
+    // Handle empty string or null
+    if (!string) return '';
+
+    // Split the string by spaces and format each word
+    return string
+        .split(' ')
+        .map(word => {
+            // Convert entire word to lowercase first
+            const lowerWord = word.toLowerCase();
+            // Then capitalize only the first letter
+            return lowerWord.charAt(0).toUpperCase() + lowerWord.slice(1);
+        })
+        .join(' ');
+}
+
 export async function GET(request) {
     try {
         const authHeader = request.headers.get('authorization');
@@ -19,14 +35,16 @@ export async function GET(request) {
             return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
         }
 
-        const expenses = await prisma.expense.findMany({
-            where: {
-                userId: decoded.userId,
-            },
-            orderBy: {
-                createdAt: 'desc',
-            },
-        });
+        const [user, expenses] = await Promise.all([
+            prisma.user.findUnique({
+                where: { id: decoded.userId },
+                select: { id: true, name: true },
+            }),
+            prisma.expense.findMany({
+                where: { userId: decoded.userId },
+                orderBy: { createdAt: 'desc' },
+            }),
+        ]);
 
         const transformedExpenses = expenses.map(expense => ({
             id: expense.id,
@@ -55,6 +73,10 @@ export async function GET(request) {
         const largestExpense = transformedExpenses.length ? Math.max(...transformedExpenses.map(exp => exp.amount)) : 0;
 
         const response = {
+            user: {
+                ...user,
+                name: formatName(user.name),
+            },
             expenses: transformedExpenses,
             summary: {
                 totalSpent,
