@@ -8,16 +8,16 @@ datasource db {
 }
 
 model User {
-    id           String    @id @default(cuid()) @map("id")
-    email        String    @unique @map("email")
-    password     String    @map("password")
-    businessName String    @map("businessname")
-    expenses     Expense[]
-    createdAt    DateTime  @default(now()) @map("createdat")
-    updatedAt    DateTime  @updatedAt @map("updatedat")
+    id        String    @id @default(cuid()) @map("id")
+    name      String    @map("name")
+    email     String    @unique @map("email")
+    password  String    @map("password")
+    createdAt DateTime  @default(now()) @map("createdat")
+    updatedAt DateTime  @updatedAt @map("updatedat")
+    Expense   Expense[]
 
     @@index([email])
-    @@index([businessName])
+    @@index([name])
     @@map("user")
 }
 

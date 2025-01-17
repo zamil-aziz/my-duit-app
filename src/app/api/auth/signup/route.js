@@ -5,10 +5,10 @@ import { NextResponse } from 'next/server';
 export async function POST(request) {
     try {
         const body = await request.json();
-        const { email, password, businessName } = body;
+        const { email, password, name } = body;
 
         // Validate input
-        if (!email || !password || !businessName) {
+        if (!email || !password || !name) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
 
@@ -29,7 +29,7 @@ export async function POST(request) {
             data: {
                 email,
                 password: hashedPassword,
-                businessName,
+                name,
             },
         });
 

@@ -16,7 +16,7 @@ export default function SignUpPage() {
         email: '',
         password: '',
         confirmPassword: '',
-        businessName: '',
+        name: '',
     });
 
     // UI state management
@@ -62,8 +62,8 @@ export default function SignUpPage() {
             newErrors.confirmPassword = 'Passwords do not match';
         }
 
-        if (!formData.businessName) {
-            newErrors.businessName = 'Business name is required';
+        if (!formData.name) {
+            newErrors.name = 'Name name is required';
         }
 
         return newErrors;
@@ -94,7 +94,7 @@ export default function SignUpPage() {
                 body: JSON.stringify({
                     email: formData.email,
                     password: formData.password,
-                    businessName: formData.businessName,
+                    name: formData.name,
                 }),
             });
 
@@ -151,23 +151,23 @@ export default function SignUpPage() {
 
                     {/* Form */}
                     <form onSubmit={handleSubmit} className='space-y-6'>
-                        {/* Business Name Field */}
+                        {/* Name Field */}
                         <div className='space-y-2'>
-                            <Label htmlFor='businessName' className='text-gray-300'>
-                                Business Name
+                            <Label htmlFor='name' className='text-gray-300'>
+                                Name
                             </Label>
                             <Input
-                                id='businessName'
-                                name='businessName'
+                                id='name'
+                                name='name'
                                 type='text'
-                                value={formData.businessName}
+                                value={formData.name}
                                 onChange={handleChange}
                                 className={`bg-gray-900 border-gray-800 text-white placeholder-gray-500 focus:ring-blue-500 ${
-                                    errors.businessName ? 'border-red-500' : ''
+                                    errors.name ? 'border-red-500' : ''
                                 }`}
-                                placeholder='Your business name'
+                                placeholder='Your name'
                             />
-                            {errors.businessName && <p className='text-red-500 text-xs mt-1'>{errors.businessName}</p>}
+                            {errors.name && <p className='text-red-500 text-xs mt-1'>{errors.name}</p>}
                         </div>
 
                         {/* Email Field */}
