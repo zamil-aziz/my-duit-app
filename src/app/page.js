@@ -8,13 +8,12 @@ export default function LandingPage() {
     return (
         <div className='min-h-screen bg-gray-950 text-white'>
             {/* Gradient background */}
-            <div className='absolute inset-0 bg-gradient-to-br from-blue-600/20 to-purple-600/20 pointer-events-none' />
-
-            <header className='relative overflow-hidden'>
-                <Navigation />
-                <HeroSection />
-            </header>
-
+            <div className='inset-0 bg-gradient-to-br from-blue-600/20 to-purple-600/20 pointer-events-none'>
+                <header className='relative overflow-hidden'>
+                    <Navigation />
+                    <HeroSection />
+                </header>
+            </div>
             <FeaturesSection />
             <CTASection />
             <Footer />
