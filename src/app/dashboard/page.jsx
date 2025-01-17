@@ -1,11 +1,70 @@
+'use client';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { StatsCard } from '@/components/dashboard/StatsCard';
 import { QuickAddExpenseSection } from '@/components/dashboard/QuickAddExpenseSection';
 import { TransactionSection } from '@/components/dashboard/TransactionSection';
-import { BarChart2, Menu } from 'lucide-react';
-import { summaryData, recentTransactions } from '@/constants/data';
+import { BarChart2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 export default function DashboardPage() {
+    const router = useRouter();
+    const [user, setUser] = useState(null);
+    const [data, setData] = useState({
+        expenses: [],
+        summary: {
+            totalSpent: 0,
+            monthlyAverage: 0,
+            largestExpense: 0,
+        },
+    });
+
+    // Move fetchData outside useEffect so it can be used elsewhere
+    const fetchData = async () => {
+        const token = localStorage.getItem('token');
+        try {
+            const response = await fetch('/api/expenses', {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch expenses');
+            }
+
+            const responseData = await response.json();
+            setData(responseData);
+        } catch (error) {
+            console.error('Error fetching data:', error);
+            // Handle error appropriately
+        }
+    };
+
+    useEffect(() => {
+        // Check if user is logged in
+        const storedUser = localStorage.getItem('user');
+        const token = localStorage.getItem('token');
+
+        if (!storedUser || !token) {
+            router.push('/login');
+            return;
+        }
+
+        setUser(JSON.parse(storedUser));
+        fetchData(); // Initial data fetch
+    }, [router]);
+
+    const handleLogout = () => {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        router.push('/login');
+    };
+
+    if (!user) {
+        return null; // or loading spinner
+    }
+
     return (
         <div className='flex flex-col lg:flex-row min-h-screen bg-gray-950'>
             {/* Mobile Header */}
@@ -14,9 +73,6 @@ export default function DashboardPage() {
                     <BarChart2 className='w-6 h-6 text-blue-500' />
                     <span className='text-lg font-bold text-white'>MyDuitApp</span>
                 </div>
-                {/* <Button variant='ghost' size='icon' className='text-gray-400'>
-                    <Menu className='w-5 h-5' />
-                </Button> */}
             </div>
 
             {/* Desktop Sidebar */}
@@ -29,6 +85,13 @@ export default function DashboardPage() {
                     <Button variant='ghost' className='w-full justify-start text-white hover:bg-gray-800'>
                         Dashboard
                     </Button>
+                    <Button
+                        variant='ghost'
+                        className='w-full justify-start text-white hover:bg-gray-800'
+                        onClick={handleLogout}
+                    >
+                        Logout
+                    </Button>
                 </nav>
             </div>
 
@@ -37,7 +100,7 @@ export default function DashboardPage() {
                 {/* Header Section */}
                 <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4'>
                     <div>
-                        <h1 className='text-2xl lg:text-3xl font-bold text-white mb-1'>Welcome back, Makcik Canteen</h1>
+                        <h1 className='text-2xl lg:text-3xl font-bold text-white mb-1'>Welcome back, {user.name}</h1>
                         <p className='text-sm lg:text-base text-gray-400'>Track your expenses and manage your budget</p>
                     </div>
                 </div>
@@ -47,23 +110,19 @@ export default function DashboardPage() {
                     <div className='flex gap-3 min-w-max'>
                         <StatsCard
                             title='Total Spent'
-                            value={summaryData.totalSpent}
+                            value={`RM ${data.summary.totalSpent.toFixed(2)}`}
                             iconName='Wallet'
-                            trend='up'
-                            trendText='12% from last month'
                             gradient='from-purple-500 to-blue-500'
                         />
                         <StatsCard
                             title='Monthly Average'
-                            value={summaryData.monthlyAverage}
+                            value={`RM ${data.summary.monthlyAverage.toFixed(2)}`}
                             iconName='Calendar'
-                            trend='down'
-                            trendText='5% from last month'
                             gradient='from-emerald-500 to-teal-500'
                         />
                         <StatsCard
                             title='Largest Expense'
-                            value={summaryData.largestExpense}
+                            value={`RM ${data.summary.largestExpense.toFixed(2)}`}
                             iconName='Tag'
                             gradient='from-orange-500 to-red-500'
                         />
@@ -73,10 +132,13 @@ export default function DashboardPage() {
                 {/* Main Grid */}
                 <div className='grid grid-cols-1 lg:grid-cols-5 gap-4 lg:gap-8'>
                     <div className='lg:col-span-2'>
-                        <QuickAddExpenseSection />
+                        <QuickAddExpenseSection
+                            userId={user.id}
+                            onExpenseAdded={fetchData} // Pass the fetchData function here
+                        />
                     </div>
                     <div className='lg:col-span-3'>
-                        <TransactionSection transactions={recentTransactions} />
+                        <TransactionSection transactions={data.expenses} />
                     </div>
                 </div>
             </div>
