@@ -4,6 +4,26 @@ import { Button } from '@/components/ui/button';
 import { ChevronLeft } from 'lucide-react';
 
 export function FullTransactionList({ transactions, onBack }) {
+    const formatDate = dateString => {
+        const date = new Date(dateString);
+
+        // Format date like "17 Jan 2025"
+        const formattedDate = date.toLocaleDateString('en-US', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+        });
+
+        // Format time like "3:57 PM"
+        const formattedTime = date.toLocaleTimeString('en-US', {
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true,
+        });
+
+        return `${formattedDate}, ${formattedTime}`;
+    };
+
     return (
         <Card className='border-0 bg-gray-900/50 backdrop-blur-sm'>
             <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
@@ -28,7 +48,9 @@ export function FullTransactionList({ transactions, onBack }) {
                                 key={transaction.id}
                                 className='grid grid-cols-12 items-center gap-1 sm:gap-3 py-1 px-2 sm:px-3 hover:bg-gray-800/50 transition-colors duration-200'
                             >
-                                <p className='text-[11px] text-gray-400 col-span-3 truncate'>{transaction.date}</p>
+                                <p className='text-[11px] text-gray-400 col-span-3 truncate'>
+                                    {formatDate(transaction.createdAt)}
+                                </p>
                                 <div className='col-span-6 min-w-0'>
                                     <p className='text-[11px] text-white truncate leading-relaxed'>
                                         {transaction.description}

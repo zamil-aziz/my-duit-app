@@ -8,6 +8,23 @@ import { FullTransactionList } from './FullTransactionList';
 export function TransactionSection({ transactions }) {
     const [showAllTransactions, setShowAllTransactions] = useState(false);
 
+    const formatDate = dateString => {
+        const date = new Date(dateString);
+
+        const formattedDate = date.toLocaleDateString('en-US', {
+            day: 'numeric',
+            month: 'short',
+        });
+
+        const formattedTime = date.toLocaleTimeString('en-US', {
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true,
+        });
+
+        return `${formattedDate}, ${formattedTime}`;
+    };
+
     if (showAllTransactions) {
         return <FullTransactionList transactions={transactions} onBack={() => setShowAllTransactions(false)} />;
     }
@@ -27,13 +44,13 @@ export function TransactionSection({ transactions }) {
                             <div className='p-2 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 mr-3'>
                                 <Tag className='w-4 h-4 text-white' />
                             </div>
-                            <div className='flex-1 flex items-center justify-between'>
+                            <div className='flex-1 grid grid-cols-3 items-center'>
                                 <span className='text-sm font-medium text-white'>{transaction.description}</span>
-                                <div className='flex items-center space-x-4'>
-                                    <span className='text-sm text-gray-400'>{`RM${transaction.amount}`}</span>
-                                    <span className='text-sm text-gray-400'>{transaction.date}</span>
-                                </div>
+                                <span className='text-sm text-gray-400 text-center'>{`RM${transaction.amount}`}</span>
                             </div>
+                            <span className='text-sm text-gray-400 text-right'>
+                                {formatDate(transaction.createdAt)}
+                            </span>
                         </div>
                     ))}
                 </div>
