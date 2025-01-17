@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { StatsCard } from '@/components/dashboard/StatsCard';
-import { QuickAddExpenseSection } from '@/components/dashboard/AddExpenseSection';
+import { AddExpenseSection } from '@/components/dashboard/AddExpenseSection';
 import { TransactionSection } from '@/components/dashboard/TransactionSection';
 import { BarChart2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -163,7 +163,7 @@ export default function DashboardPage() {
                 {/* Main Grid */}
                 <div className='grid grid-cols-1 lg:grid-cols-5 gap-4 lg:gap-8'>
                     <div className='lg:col-span-2'>
-                        <QuickAddExpenseSection userId={user.id} onExpenseAdded={handleExpenseAdded} />
+                        <AddExpenseSection userId={user.id} onExpenseAdded={handleExpenseAdded} />
                     </div>
                     <div className='lg:col-span-3'>
                         <TransactionSection

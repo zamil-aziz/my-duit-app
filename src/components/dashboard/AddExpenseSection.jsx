@@ -2,11 +2,11 @@
 
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { QuickAddExpense } from './AddExpense';
+import { AddExpense } from './AddExpense';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle, CheckCircle } from 'lucide-react';
 
-export function QuickAddExpenseSection({ onExpenseAdded }) {
+export function AddExpenseSection({ onExpenseAdded }) {
     const [status, setStatus] = useState({ type: '', message: '' });
 
     const handleAddExpense = async expenseData => {
@@ -54,7 +54,7 @@ export function QuickAddExpenseSection({ onExpenseAdded }) {
     return (
         <Card className='border-0 bg-gray-900/50 backdrop-blur-sm h-full'>
             <CardHeader>
-                <CardTitle className='text-lg font-semibold text-white'>Quick Add Expense</CardTitle>
+                <CardTitle className='text-lg font-semibold text-white'>Add Expense</CardTitle>
             </CardHeader>
             <CardContent>
                 {status.type === 'error' && (
@@ -69,7 +69,7 @@ export function QuickAddExpenseSection({ onExpenseAdded }) {
                         <AlertDescription>{status.message}</AlertDescription>
                     </Alert>
                 )}
-                <QuickAddExpense onSubmit={handleAddExpense} />
+                <AddExpense onSubmit={handleAddExpense} />
             </CardContent>
         </Card>
     );
