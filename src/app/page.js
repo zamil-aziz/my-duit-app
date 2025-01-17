@@ -6,17 +6,20 @@ import { Footer } from '@/components/landing/Footer';
 
 export default function LandingPage() {
     return (
-        <div className='min-h-screen bg-gray-950 text-white'>
-            {/* Gradient background */}
-            <div className='inset-0 bg-gradient-to-br from-blue-600/20 to-purple-600/20 pointer-events-none'>
+        <div className='relative min-h-screen bg-gray-950 text-white'>
+            {/* Gradient background - positioned absolute */}
+            <div className='absolute inset-0 bg-gradient-to-br from-blue-600/20 to-purple-600/20 pointer-events-none' />
+
+            {/* Content - positioned relative */}
+            <div className='relative z-10'>
                 <header className='relative overflow-hidden'>
                     <Navigation />
                     <HeroSection />
                 </header>
+                <FeaturesSection />
+                <CTASection />
+                <Footer />
             </div>
-            <FeaturesSection />
-            <CTASection />
-            <Footer />
         </div>
     );
 }
