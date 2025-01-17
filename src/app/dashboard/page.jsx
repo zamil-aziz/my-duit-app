@@ -61,6 +61,19 @@ export default function DashboardPage() {
         router.push('/login');
     };
 
+    // Add handlers for transaction updates
+    const handleTransactionDeleted = async deletedId => {
+        await fetchData(); // Refresh all data after deletion
+    };
+
+    const handleTransactionUpdated = async updatedTransaction => {
+        await fetchData(); // Refresh all data after update
+    };
+
+    const handleExpenseAdded = async () => {
+        await fetchData(); // Refresh all data after adding new expense
+    };
+
     if (!user) {
         return null; // or loading spinner
     }
@@ -132,10 +145,14 @@ export default function DashboardPage() {
                 {/* Main Grid */}
                 <div className='grid grid-cols-1 lg:grid-cols-5 gap-4 lg:gap-8'>
                     <div className='lg:col-span-2'>
-                        <QuickAddExpenseSection userId={user.id} onExpenseAdded={fetchData} />
+                        <QuickAddExpenseSection userId={user.id} onExpenseAdded={handleExpenseAdded} />
                     </div>
                     <div className='lg:col-span-3'>
-                        <TransactionSection transactions={data.expenses} />
+                        <TransactionSection
+                            transactions={data.expenses}
+                            onTransactionDeleted={handleTransactionDeleted}
+                            onTransactionUpdated={handleTransactionUpdated}
+                        />
                     </div>
                 </div>
             </div>
