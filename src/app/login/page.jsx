@@ -171,8 +171,10 @@ export default function LoginPage() {
                         {/* Error Alert */}
                         {errors.submit && (
                             <Alert variant='destructive' className='bg-red-900/50 border-red-900 text-red-300'>
-                                <AlertCircle className='h-4 w-4' />
-                                <AlertDescription>{errors.submit}</AlertDescription>
+                                <div className='flex items-center gap-2'>
+                                    <AlertCircle className='h-4 w-4' />
+                                    <AlertDescription>{errors.submit}</AlertDescription>
+                                </div>
                             </Alert>
                         )}
 

@@ -225,7 +225,7 @@ export default function SignUpPage() {
                                     placeholder='••••••••'
                                 />
                                 {errors.confirmPassword && (
-                                    <p className='text-red-500 text-xs mt-1'>{errors.confirmPassword}</p>
+                                    <p className='text-red-500 text-xs'>{errors.confirmPassword}</p>
                                 )}
                             </div>
                         </div>
@@ -233,8 +233,10 @@ export default function SignUpPage() {
                         {/* Error Alert */}
                         {errors.submit && (
                             <Alert variant='destructive' className='bg-red-900/50 border-red-900 text-red-300'>
-                                <AlertCircle className='h-4 w-4' />
-                                <AlertDescription>{errors.submit}</AlertDescription>
+                                <div className='flex items-center gap-2'>
+                                    <AlertCircle className='h-4 w-4' />
+                                    <AlertDescription>{errors.submit}</AlertDescription>
+                                </div>
                             </Alert>
                         )}
 
