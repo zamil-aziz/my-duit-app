@@ -14,12 +14,7 @@ const prismaClientSingleton = () => {
                 url: process.env.DATABASE_URL,
             },
         },
-        // Add connection timeout settings
-        connectionTimeout: 60000,
-        pool: {
-            min: 0,
-            max: 1,
-        },
+        // Remove connectionTimeout and pool settings as they're not supported
     });
 
     return client;
@@ -38,8 +33,6 @@ const testConnection = async () => {
     try {
         await prisma.$connect();
         console.log('Database connection test successful');
-
-        // Optional: Test a simple query
         await prisma.$queryRaw`SELECT 1`;
         console.log('Database query test successful');
     } catch (error) {
@@ -49,8 +42,6 @@ const testConnection = async () => {
             meta: error?.meta,
             stack: error.stack,
         });
-        // Optionally force exit if connection fails
-        // process.exit(1);
     }
 };
 
