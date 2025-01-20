@@ -8,9 +8,6 @@ const prismaClientSingleton = () => {
                 url: process.env.DATABASE_URL,
             },
         },
-        // Add connection retry logic
-        connectionTimeout: 60000,
-        maxRetries: 3,
     });
 };
 
