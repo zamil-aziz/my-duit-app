@@ -1,9 +1,9 @@
 import { PrismaClient } from '@prisma/client';
 
 const prismaClientSingleton = () => {
-    // Log the environment
-    console.log('Environment:', process.env.NODE_ENV);
-    console.log('Initializing PrismaClient...');
+    // Debug logging
+    console.log('Node ENV:', process.env.NODE_ENV);
+    console.log('Database URL (masked):', process.env.DATABASE_URL?.replace(/:[^:@]{1,}@/, ':****@'));
 
     const client = new PrismaClient({
         log: ['query', 'info', 'warn', 'error'],
@@ -14,11 +14,10 @@ const prismaClientSingleton = () => {
         },
     });
 
-    // Test the connection
-    client
-        .$connect()
-        .then(() => console.log('Database connection successful'))
-        .catch(e => console.error('Database connection failed:', e));
+    // Add connection event logging
+    client.$on('beforeExit', () => {
+        console.log('PrismaClient beforeExit event');
+    });
 
     return client;
 };
@@ -28,3 +27,15 @@ const globalForPrisma = global.prisma || {};
 export const prisma = globalForPrisma.prisma ?? prismaClientSingleton();
 
 if (process.env.NODE_ENV !== 'production') global.prisma = prisma;
+
+// Test connection on startup
+prisma
+    .$connect()
+    .then(() => console.log('Initial database connection test successful'))
+    .catch(error => {
+        console.error('Initial database connection test failed:', {
+            message: error.message,
+            code: error.code,
+            meta: error?.meta,
+        });
+    });
