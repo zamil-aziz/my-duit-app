@@ -2,16 +2,18 @@ import { PrismaClient } from '@prisma/client';
 
 const prismaClientSingleton = () => {
     return new PrismaClient({
-        log: ['query'],
+        log: ['query', 'error', 'warn'],
         datasources: {
             db: {
                 url: process.env.DATABASE_URL,
             },
         },
+        // Add connection retry logic
+        connectionTimeout: 60000,
+        maxRetries: 3,
     });
 };
 
-// Changed from TypeScript syntax to JavaScript
 const globalForPrisma = global.prisma || {};
 
 export const prisma = globalForPrisma.prisma ?? prismaClientSingleton();
