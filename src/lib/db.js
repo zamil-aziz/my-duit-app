@@ -14,11 +14,6 @@ const prismaClientSingleton = () => {
         },
     });
 
-    // Add connection event logging
-    client.$on('beforeExit', () => {
-        console.log('PrismaClient beforeExit event');
-    });
-
     return client;
 };
 
