@@ -11,7 +11,6 @@ const nextConfig = withPWA({
     workboxOptions: {
         disableDevLogs: true,
     },
-    sw: 'src/app/worker/index.js', // Add this line
     runtimeCaching: [
         {
             urlPattern: /^https?.*/,
