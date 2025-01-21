@@ -29,7 +29,7 @@ export const metadata = {
     appleWebApp: {
         capable: true,
         statusBarStyle: 'default',
-        title: 'Expense Tracker',
+        title: 'My Duit App',
     },
     formatDetection: {
         telephone: true,
