@@ -62,7 +62,6 @@ export default function DashboardPage() {
         }
     };
 
-    // Check online status and setup listeners
     useEffect(() => {
         const updateOnlineStatus = () => {
             const online = navigator.onLine;
@@ -72,11 +71,16 @@ export default function DashboardPage() {
                     title: "You're back online",
                     description: 'Syncing your data...',
                 });
-                // Trigger sync when coming back online
+                // Updated service worker registration
                 if ('serviceWorker' in navigator && 'SyncManager' in window) {
-                    navigator.serviceWorker.ready.then(sw => {
-                        sw.sync.register('sync-expenses');
-                    });
+                    navigator.serviceWorker
+                        .register('/sw.js')
+                        .then(registration => {
+                            registration.sync.register('sync-expenses');
+                        })
+                        .catch(error => {
+                            console.error('ServiceWorker registration failed:', error);
+                        });
                 }
                 fetchData();
             } else {
@@ -90,8 +94,18 @@ export default function DashboardPage() {
         window.addEventListener('online', updateOnlineStatus);
         window.addEventListener('offline', updateOnlineStatus);
 
-        // Set initial online status
+        // Set initial online status and register service worker
         setIsOnline(navigator.onLine);
+        if ('serviceWorker' in navigator && 'SyncManager' in window) {
+            navigator.serviceWorker
+                .register('/sw.js')
+                .then(registration => {
+                    registration.sync.register('sync-expenses');
+                })
+                .catch(error => {
+                    console.error('ServiceWorker registration failed:', error);
+                });
+        }
 
         return () => {
             window.removeEventListener('online', updateOnlineStatus);
