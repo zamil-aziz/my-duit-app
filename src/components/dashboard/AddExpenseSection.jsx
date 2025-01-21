@@ -1,13 +1,51 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AddExpense } from './AddExpense';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle, CheckCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle, WifiOff } from 'lucide-react';
 
 export function AddExpenseSection({ onExpenseAdded }) {
     const [status, setStatus] = useState({ type: '', message: '' });
+    const [isOnline, setIsOnline] = useState(true);
+
+    useEffect(() => {
+        // Set initial online status
+        setIsOnline(navigator.onLine);
+
+        // Listen for online/offline events
+        const handleOnline = () => setIsOnline(true);
+        const handleOffline = () => setIsOnline(false);
+
+        // Listen for sync completion messages from service worker
+        const handleSyncComplete = event => {
+            if (event.data && event.data.type === 'SYNC_COMPLETED') {
+                if (event.data.mutation.method === 'POST') {
+                    setStatus({
+                        type: 'success',
+                        message: 'Offline expense successfully synced!',
+                    });
+                    onExpenseAdded?.();
+
+                    // Clear success message after 3 seconds
+                    setTimeout(() => {
+                        setStatus({ type: '', message: '' });
+                    }, 3000);
+                }
+            }
+        };
+
+        window.addEventListener('online', handleOnline);
+        window.addEventListener('offline', handleOffline);
+        navigator.serviceWorker?.addEventListener('message', handleSyncComplete);
+
+        return () => {
+            window.removeEventListener('online', handleOnline);
+            window.removeEventListener('offline', handleOffline);
+            navigator.serviceWorker?.removeEventListener('message', handleSyncComplete);
+        };
+    }, [onExpenseAdded]);
 
     const handleAddExpense = async expenseData => {
         try {
@@ -25,18 +63,26 @@ export function AddExpenseSection({ onExpenseAdded }) {
                 body: JSON.stringify(expenseData),
             });
 
+            const data = await response.json();
+
             if (!response.ok) {
-                const data = await response.json();
                 throw new Error(data.error || 'Failed to add expense');
             }
 
-            // Show success message
-            setStatus({
-                type: 'success',
-                message: 'Expense added successfully!',
-            });
+            // Check if the operation was queued for offline sync
+            if (data.status === 'offline') {
+                setStatus({
+                    type: 'info',
+                    message: "You're offline. Expense saved and will sync when you're back online.",
+                });
+            } else {
+                setStatus({
+                    type: 'success',
+                    message: 'Expense added successfully!',
+                });
+            }
 
-            // Clear success message after 3 seconds
+            // Clear success/info message after 3 seconds
             setTimeout(() => {
                 setStatus({ type: '', message: '' });
             }, 3000);
@@ -44,17 +90,36 @@ export function AddExpenseSection({ onExpenseAdded }) {
             // Trigger refresh of expense data
             onExpenseAdded?.();
         } catch (error) {
-            setStatus({
-                type: 'error',
-                message: error.message || 'Failed to add expense',
-            });
+            console.error('Error adding expense:', error);
+
+            if (!navigator.onLine) {
+                setStatus({
+                    type: 'info',
+                    message: "You're offline. Expense saved and will sync when you're back online.",
+                });
+                // Still trigger the refresh to show locally stored data
+                onExpenseAdded?.();
+            } else {
+                setStatus({
+                    type: 'error',
+                    message: error.message || 'Failed to add expense',
+                });
+            }
         }
     };
 
     return (
         <Card className='border-0 bg-gray-900/50 backdrop-blur-sm h-full'>
             <CardHeader>
-                <CardTitle className='text-lg font-semibold text-white'>Add Expense</CardTitle>
+                <CardTitle className='text-lg font-semibold text-white flex items-center justify-between'>
+                    <span>Add Expense</span>
+                    {!isOnline && (
+                        <div className='flex items-center text-yellow-500 text-sm'>
+                            <WifiOff className='h-4 w-4 mr-1' />
+                            <span>Offline Mode</span>
+                        </div>
+                    )}
+                </CardTitle>
             </CardHeader>
             <CardContent>
                 {status.type === 'error' && (
@@ -66,6 +131,12 @@ export function AddExpenseSection({ onExpenseAdded }) {
                 {status.type === 'success' && (
                     <Alert className='mb-4 bg-green-900/50 border-green-900 text-green-300'>
                         <CheckCircle className='h-4 w-4' />
+                        <AlertDescription>{status.message}</AlertDescription>
+                    </Alert>
+                )}
+                {status.type === 'info' && (
+                    <Alert className='mb-4 bg-blue-900/50 border-blue-900 text-blue-300'>
+                        <AlertCircle className='h-4 w-4' />
                         <AlertDescription>{status.message}</AlertDescription>
                     </Alert>
                 )}

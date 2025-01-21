@@ -19,6 +19,7 @@ cleanupOutdatedCaches();
 // Initialize IndexedDB for offline operations
 const DB_NAME = 'expenses-offline-db';
 const STORE_NAME = 'offline-mutations';
+const EXPENSES_CACHE = 'expenses-cache';
 
 const initDB = () => {
     return new Promise((resolve, reject) => {
@@ -30,49 +31,89 @@ const initDB = () => {
         request.onupgradeneeded = event => {
             const db = event.target.result;
             if (!db.objectStoreNames.contains(STORE_NAME)) {
-                db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
+                const store = db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
+                store.createIndex('timestamp', 'timestamp', { unique: false });
+                store.createIndex('synced', 'synced', { unique: false });
             }
         };
     });
 };
 
+// Helper function to serialize request data
+const serializeRequest = async request => {
+    const serialized = {
+        url: request.url,
+        method: request.method,
+        headers: Array.from(request.headers.entries()),
+        mode: request.mode,
+        credentials: request.credentials,
+        cache: request.cache,
+        redirect: request.redirect,
+        referrer: request.referrer,
+        integrity: request.integrity,
+        timestamp: Date.now(),
+        synced: false,
+    };
+
+    if (request.method !== 'GET') {
+        serialized.body = await request.clone().text();
+    }
+
+    return serialized;
+};
+
 // Handle API routes with offline support
 registerRoute(
     ({ url }) => url.pathname.startsWith('/api/expenses'),
-    async ({ request }) => {
-        // Handle offline mutations (DELETE, POST, PUT)
-        if (!navigator.onLine && ['DELETE', 'POST', 'PUT'].includes(request.method)) {
+    async ({ event }) => {
+        const request = event.request;
+
+        // Check if we're offline and it's a mutation request
+        if (!self.navigator.onLine && ['POST', 'PUT', 'DELETE'].includes(request.method)) {
             try {
                 const db = await initDB();
                 const tx = db.transaction(STORE_NAME, 'readwrite');
                 const store = tx.objectStore(STORE_NAME);
 
-                // Store the request for later
-                await store.add({
-                    url: request.url,
-                    method: request.method,
-                    headers: Array.from(request.headers.entries()),
-                    body: request.method !== 'GET' ? await request.clone().text() : null,
-                    timestamp: Date.now(),
-                });
+                // Store the serialized request
+                const serializedRequest = await serializeRequest(request);
+                await store.add(serializedRequest);
 
+                // Schedule a sync
+                if ('sync' in self.registration) {
+                    await self.registration.sync.register('sync-expenses');
+                }
+
+                // Return a "queued" response
                 return new Response(
                     JSON.stringify({
-                        status: 'queued',
+                        status: 'offline',
                         message: 'Operation queued for sync',
+                        timestamp: Date.now(),
                     }),
                     {
+                        status: 202,
                         headers: { 'Content-Type': 'application/json' },
                     }
                 );
             } catch (error) {
-                console.error('Error storing offline mutation:', error);
+                console.error('Error queuing offline operation:', error);
+                return new Response(
+                    JSON.stringify({
+                        status: 'error',
+                        message: 'Failed to queue offline operation',
+                    }),
+                    {
+                        status: 500,
+                        headers: { 'Content-Type': 'application/json' },
+                    }
+                );
             }
         }
 
-        // Online behavior
+        // Online behavior using NetworkFirst strategy
         return new NetworkFirst({
-            cacheName: 'api-cache',
+            cacheName: EXPENSES_CACHE,
             networkTimeoutSeconds: 3,
             plugins: [
                 new ExpirationPlugin({
@@ -80,12 +121,19 @@ registerRoute(
                     maxAgeSeconds: 300, // 5 minutes
                 }),
             ],
-        }).handle({ request });
+        }).handle({ event });
     }
 );
 
-// Background sync
-self.addEventListener('sync', async event => {
+// Background sync handler
+self.addEventListener('sync', event => {
+    if (event.tag === 'sync-expenses') {
+        event.waitUntil(syncOfflineMutations());
+    }
+});
+
+// Periodic sync handler (if supported)
+self.addEventListener('periodicsync', event => {
     if (event.tag === 'sync-expenses') {
         event.waitUntil(syncOfflineMutations());
     }
@@ -98,30 +146,55 @@ async function syncOfflineMutations() {
     const mutations = await store.getAll();
 
     for (const mutation of mutations) {
+        if (mutation.synced) continue;
+
         try {
-            const response = await fetch(mutation.url, {
+            // Reconstruct the request
+            const request = new Request(mutation.url, {
                 method: mutation.method,
                 headers: new Headers(mutation.headers),
-                body: mutation.method !== 'DELETE' ? mutation.body : undefined,
+                body: mutation.body,
+                mode: mutation.mode,
+                credentials: mutation.credentials,
+                cache: mutation.cache,
+                redirect: mutation.redirect,
+                referrer: mutation.referrer,
+                integrity: mutation.integrity,
             });
 
-            if (response.ok) {
-                // Remove the mutation after successful sync
-                const deleteTx = db.transaction(STORE_NAME, 'readwrite');
-                const deleteStore = deleteTx.objectStore(STORE_NAME);
-                await deleteStore.delete(mutation.id);
+            const response = await fetch(request);
 
-                // Notify the client about successful sync
+            if (response.ok) {
+                // Mark as synced
+                const updateTx = db.transaction(STORE_NAME, 'readwrite');
+                const updateStore = updateTx.objectStore(STORE_NAME);
+                mutation.synced = true;
+                await updateStore.put(mutation);
+
+                // Clear the cached data to force a refresh
+                const cache = await caches.open(EXPENSES_CACHE);
+                const cachedRequests = await cache.keys();
+                for (const cachedRequest of cachedRequests) {
+                    if (cachedRequest.url.includes('/api/expenses')) {
+                        await cache.delete(cachedRequest);
+                    }
+                }
+
+                // Notify all clients
                 const clients = await self.clients.matchAll();
                 clients.forEach(client => {
                     client.postMessage({
                         type: 'SYNC_COMPLETED',
-                        mutation: mutation,
+                        mutation: {
+                            url: mutation.url,
+                            method: mutation.method,
+                            timestamp: mutation.timestamp,
+                        },
                     });
                 });
             }
         } catch (error) {
-            console.error('Failed to sync mutation:', error);
+            console.error('Sync failed for mutation:', error);
         }
     }
 }
@@ -148,7 +221,7 @@ registerRoute(
     })
 );
 
-// Default route handler for other requests
+// Default handler for other requests
 registerRoute(
     ({ url }) => !url.pathname.startsWith('/api/'),
     new NetworkFirst({
@@ -156,8 +229,15 @@ registerRoute(
         plugins: [
             new ExpirationPlugin({
                 maxEntries: 32,
-                maxAgeSeconds: 86400,
+                maxAgeSeconds: 86400, // 24 hours
             }),
         ],
     })
 );
+
+// Listen for messages from clients
+self.addEventListener('message', event => {
+    if (event.data && event.data.type === 'SKIP_WAITING') {
+        self.skipWaiting();
+    }
+});
