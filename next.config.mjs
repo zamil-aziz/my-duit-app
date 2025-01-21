@@ -1,15 +1,17 @@
 /** @type {import('next').NextConfig} */
-import withPWA from 'next-pwa';
+import withPWA from '@ducanh2912/next-pwa';
 
-const pwaConfig = withPWA({
+const nextConfig = withPWA({
     dest: 'public',
-    // disable: process.env.NODE_ENV === 'development',
+    cacheOnFrontEndNav: true,
+    aggressiveFrontEndNavCaching: true,
+    reloadOnOnline: true,
+    swcMinify: true,
     disable: false,
-    register: true,
-    skipWaiting: true,
-});
-
-const nextConfig = {
+    workboxOptions: {
+        disableDevLogs: true,
+    },
+})({
     reactStrictMode: true,
     experimental: {
         scrollRestoration: true,
@@ -40,10 +42,6 @@ const nextConfig = {
             },
         ];
     },
-    onDemandEntries: {
-        maxInactiveAge: 25 * 1000,
-        pagesBufferLength: 4,
-    },
-};
+});
 
-export default pwaConfig(nextConfig);
+export default nextConfig;
