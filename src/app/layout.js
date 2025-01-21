@@ -11,7 +11,7 @@ const geistMono = Geist_Mono({
     subsets: ['latin'],
 });
 
-// Separate viewport configuration
+// Viewport configuration
 export const viewport = {
     width: 'device-width',
     initialScale: 1,
@@ -30,6 +30,11 @@ export const metadata = {
         capable: true,
         statusBarStyle: 'default',
         title: 'My Duit App',
+        // Add startup images configuration
+        startupImage: ['/splash/launch.png'],
+    },
+    icons: {
+        apple: '/icons/icon-192x192.png',
     },
     formatDetection: {
         telephone: true,
@@ -38,20 +43,16 @@ export const metadata = {
         email: true,
         url: true,
     },
+    // Add meta tags for Microsoft
+    other: {
+        'msapplication-TileColor': '#000000',
+        'msapplication-tap-highlight': 'no',
+    },
 };
 
 export default function RootLayout({ children }) {
     return (
         <html lang='en'>
-            <head>
-                <link rel='manifest' href='/manifest.json' />
-                <link rel='apple-touch-icon' href='/icons/icon-192x192.png' />
-                <link rel='apple-touch-startup-image' href='/splash/launch.png' />
-
-                {/* MS specific tags */}
-                <meta name='msapplication-TileColor' content='#000000' />
-                <meta name='msapplication-tap-highlight' content='no' />
-            </head>
             <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>{children}</body>
         </html>
     );
