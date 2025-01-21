@@ -7,11 +7,14 @@ import { TransactionSection } from '@/components/dashboard/TransactionSection';
 import { BarChart2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import LoadingSpinner from '@/components/LoadingSpinner';
+import { useToast } from '@/components/ui/use-toast';
 
 export default function DashboardPage() {
     const router = useRouter();
+    const { toast } = useToast();
     const [user, setUser] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [isOnline, setIsOnline] = useState(true);
     const [data, setData] = useState({
         expenses: [],
         summary: {
@@ -43,11 +46,62 @@ export default function DashboardPage() {
             setUser(responseData.user);
         } catch (error) {
             console.error('Error fetching data:', error);
-            // Handle error appropriately
+            if (!navigator.onLine) {
+                toast({
+                    title: "You're offline",
+                    description: "Using cached data. Updates will sync when you're back online.",
+                    variant: 'default',
+                });
+            } else {
+                toast({
+                    title: 'Error',
+                    description: 'Failed to fetch expenses',
+                    variant: 'destructive',
+                });
+            }
         } finally {
             setIsLoading(false);
         }
     };
+
+    // Check online status and setup listeners
+    useEffect(() => {
+        const updateOnlineStatus = () => {
+            const online = navigator.onLine;
+            setIsOnline(online);
+            if (online) {
+                toast({
+                    title: "You're back online",
+                    description: 'Syncing your data...',
+                    variant: 'default',
+                });
+                // Trigger sync when coming back online
+                if ('serviceWorker' in navigator && 'SyncManager' in window) {
+                    navigator.serviceWorker.ready.then(sw => {
+                        sw.sync.register('sync-expenses');
+                    });
+                }
+                fetchData();
+            } else {
+                toast({
+                    title: "You're offline",
+                    description: "You can still add expenses. They'll sync when you're back online.",
+                    variant: 'default',
+                });
+            }
+        };
+
+        window.addEventListener('online', updateOnlineStatus);
+        window.addEventListener('offline', updateOnlineStatus);
+
+        // Set initial online status
+        setIsOnline(navigator.onLine);
+
+        return () => {
+            window.removeEventListener('online', updateOnlineStatus);
+            window.removeEventListener('offline', updateOnlineStatus);
+        };
+    }, []);
 
     useEffect(() => {
         // Check if user is logged in
@@ -69,16 +123,36 @@ export default function DashboardPage() {
         router.push('/login');
     };
 
-    // Add handlers for transaction updates
     const handleTransactionDeleted = async deletedId => {
+        if (!isOnline) {
+            toast({
+                title: "You're offline",
+                description: "Delete operation will sync when you're back online.",
+                variant: 'default',
+            });
+        }
         await fetchData(); // Refresh all data after deletion
     };
 
     const handleTransactionUpdated = async updatedTransaction => {
+        if (!isOnline) {
+            toast({
+                title: "You're offline",
+                description: "Update will sync when you're back online.",
+                variant: 'default',
+            });
+        }
         await fetchData(); // Refresh all data after update
     };
 
     const handleExpenseAdded = async () => {
+        if (!isOnline) {
+            toast({
+                title: "You're offline",
+                description: "Expense saved locally. Will sync when you're back online.",
+                variant: 'default',
+            });
+        }
         await fetchData(); // Refresh all data after adding new expense
     };
 
@@ -128,6 +202,13 @@ export default function DashboardPage() {
 
             {/* Main Content */}
             <div className='flex-1 p-4 lg:p-8'>
+                {/* Online/Offline Status */}
+                {!isOnline && (
+                    <div className='bg-yellow-500/10 text-yellow-500 px-4 py-2 rounded-lg mb-4 text-sm flex items-center justify-between'>
+                        <span>You're currently offline. Changes will sync when you're back online.</span>
+                    </div>
+                )}
+
                 {/* Header Section */}
                 <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4'>
                     <div>
