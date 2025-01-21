@@ -7,34 +7,31 @@ const nextConfig = withPWA({
     aggressiveFrontEndNavCaching: true,
     reloadOnOnline: true,
     swcMinify: true,
+    // disable: process.env.NODE_ENV === 'development',
     disable: false,
+    customWorkerSrc: 'custom-sw',
+    register: true,
+    skipWaiting: true,
     workboxOptions: {
         disableDevLogs: true,
     },
     runtimeCaching: [
         {
-            urlPattern: /^https?.*/,
-            handler: 'NetworkFirst',
-            options: {
-                cacheName: 'offlineCache',
-                expiration: {
-                    maxEntries: 200,
-                    maxAgeSeconds: 24 * 60 * 60, // 24 hours
-                },
-                networkTimeoutSeconds: 10,
-            },
-        },
-        {
             urlPattern: /\/api\/expenses/,
             handler: 'NetworkFirst',
             options: {
                 cacheName: 'api-cache',
+                networkTimeoutSeconds: 3,
                 expiration: {
                     maxEntries: 50,
-                    maxAgeSeconds: 5 * 60, // 5 minutes
+                    maxAgeSeconds: 0, // Don't cache API responses
+                },
+                matchOptions: {
+                    ignoreSearch: false,
                 },
             },
         },
+        // Remove the duplicate /api/expenses pattern
         {
             urlPattern: /\.(css|js)$/,
             handler: 'StaleWhileRevalidate',

@@ -30,6 +30,8 @@ export default function DashboardPage() {
             const response = await fetch('/api/expenses', {
                 headers: {
                     Authorization: `Bearer ${token}`,
+                    'Cache-Control': 'no-cache',
+                    Pragma: 'no-cache',
                 },
             });
 
@@ -45,17 +47,21 @@ export default function DashboardPage() {
             setUser(responseData.user);
         } catch (error) {
             console.error('Error fetching data:', error);
+            // Try to get data from cache if offline
             if (!navigator.onLine) {
-                toast({
-                    title: "You're offline",
-                    description: "Using cached data. Updates will sync when you're back online.",
-                });
-            } else {
-                toast({
-                    title: 'Error',
-                    description: 'Failed to fetch expenses',
-                    variant: 'destructive',
-                });
+                const cache = await caches.open('api-cache');
+                const cachedResponse = await cache.match('/api/expenses');
+                if (cachedResponse) {
+                    const cachedData = await cachedResponse.json();
+                    setData({
+                        expenses: cachedData.expenses,
+                        summary: cachedData.summary,
+                    });
+                    toast({
+                        title: 'Using cached data',
+                        description: "You're offline. Showing last cached data.",
+                    });
+                }
             }
         } finally {
             setIsLoading(false);
@@ -75,14 +81,19 @@ export default function DashboardPage() {
                 if ('serviceWorker' in navigator && 'SyncManager' in window) {
                     navigator.serviceWorker
                         .register('/sw.js')
-                        .then(registration => {
+                        .then(async registration => {
+                            // Clear old caches first
+                            const keys = await caches.keys();
+                            await Promise.all(
+                                keys.filter(key => key.includes('api-cache')).map(key => caches.delete(key))
+                            );
+
                             registration.sync.register('sync-expenses');
                         })
                         .catch(error => {
                             console.error('ServiceWorker registration failed:', error);
                         });
                 }
-                fetchData();
             } else {
                 toast({
                     title: "You're offline",
