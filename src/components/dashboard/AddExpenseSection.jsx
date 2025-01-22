@@ -5,47 +5,80 @@ import { AddExpense } from './AddExpense';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle, CheckCircle, WifiOff } from 'lucide-react';
 import { addOfflineExpense } from '@/lib/indexedDB';
+import { useToast } from '@/hooks/use-toast';
 
 export function AddExpenseSection({ onExpenseAdded }) {
     const [status, setStatus] = useState({ type: '', message: '' });
     const [isOnline, setIsOnline] = useState(true);
+    const { toast } = useToast();
 
     useEffect(() => {
-        // Set initial online status
+        // Set initial online status and register service worker
         setIsOnline(navigator.onLine);
 
-        // Listen for online/offline events
-        const handleOnline = () => setIsOnline(true);
-        const handleOffline = () => setIsOnline(false);
-
-        // Listen for sync completion messages from service worker
-        const handleSyncComplete = event => {
-            if (event.data && event.data.type === 'SYNC_COMPLETED') {
-                if (event.data.mutation.method === 'POST') {
-                    setStatus({
-                        type: 'success',
-                        message: 'Offline expense successfully synced!',
-                    });
+        // Enhanced online handler
+        const handleOnline = async () => {
+            setIsOnline(true);
+            toast({
+                title: "You're back online",
+                description: 'Syncing your data...',
+            });
+            try {
+                const registration = await navigator.serviceWorker.ready;
+                await registration.sync.register('sync-expenses');
+                setTimeout(() => {
                     onExpenseAdded?.();
+                }, 1000);
+            } catch (error) {
+                console.error('Error triggering sync:', error);
+            }
+        };
 
-                    // Clear success message after 3 seconds
-                    setTimeout(() => {
-                        setStatus({ type: '', message: '' });
-                    }, 3000);
-                }
+        const handleOffline = () => {
+            setIsOnline(false);
+            toast({
+                title: "You're offline",
+                description: "Changes will be saved locally and synced when you're back online.",
+            });
+        };
+
+        const handleMessage = event => {
+            if (event.data?.type === 'SYNC_COMPLETED') {
+                console.log('Sync completed:', event.data);
+                onExpenseAdded?.();
+                toast({
+                    title: 'Sync complete',
+                    description: 'Your offline changes have been synchronized.',
+                });
             }
         };
 
         window.addEventListener('online', handleOnline);
         window.addEventListener('offline', handleOffline);
-        navigator.serviceWorker?.addEventListener('message', handleSyncComplete);
+        navigator.serviceWorker?.addEventListener('message', handleMessage);
+
+        // Register service worker if needed
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker
+                .register('/sw.js')
+                .then(async registration => {
+                    if (navigator.onLine) {
+                        try {
+                            await registration.sync.register('sync-expenses');
+                        } catch (error) {
+                            console.error('Failed to register sync:', error);
+                        }
+                    }
+                })
+                .catch(console.error);
+        }
 
         return () => {
             window.removeEventListener('online', handleOnline);
             window.removeEventListener('offline', handleOffline);
-            navigator.serviceWorker?.removeEventListener('message', handleSyncComplete);
+            navigator.serviceWorker?.removeEventListener('message', handleMessage);
         };
-    }, [onExpenseAdded]);
+    }, [onExpenseAdded, toast]);
 
     const handleAddExpense = async expenseData => {
         try {
@@ -54,24 +87,31 @@ export function AddExpenseSection({ onExpenseAdded }) {
                 throw new Error('Not authenticated');
             }
 
+            const expense = {
+                ...expenseData,
+                token,
+                timestamp: Date.now(),
+                id: crypto.randomUUID(),
+            };
+
             // Check if we're offline first
             if (!navigator.onLine) {
                 try {
-                    await addOfflineExpense({
-                        ...expenseData,
-                        token, // Store the token with the expense for later sync
-                        timestamp: Date.now(),
-                    });
+                    await addOfflineExpense(expense);
 
                     setStatus({
                         type: 'info',
                         message: "You're offline. Expense saved and will sync when you're back online.",
                     });
 
-                    // Trigger sync if service worker is available
-                    if ('serviceWorker' in navigator && 'sync' in navigator.serviceWorker.controller) {
-                        const registration = await navigator.serviceWorker.ready;
-                        await registration.sync.register('sync-expenses');
+                    toast({
+                        title: 'Expense Saved Offline',
+                        description: "Your expense has been saved locally and will sync when you're back online.",
+                    });
+
+                    // Request sync if available
+                    if (navigator.serviceWorker?.controller) {
+                        navigator.serviceWorker.controller.postMessage({ type: 'TRIGGER_SYNC' });
                     }
 
                     onExpenseAdded?.();
@@ -89,12 +129,11 @@ export function AddExpenseSection({ onExpenseAdded }) {
                     'Content-Type': 'application/json',
                     Authorization: `Bearer ${token}`,
                 },
-                body: JSON.stringify(expenseData),
+                body: JSON.stringify(expense),
             });
 
-            const data = await response.json();
-
             if (!response.ok) {
+                const data = await response.json();
                 throw new Error(data.error || 'Failed to add expense');
             }
 
@@ -103,27 +142,33 @@ export function AddExpenseSection({ onExpenseAdded }) {
                 message: 'Expense added successfully!',
             });
 
-            // Clear success/info message after 3 seconds
+            toast({
+                title: 'Success',
+                description: 'Expense added successfully!',
+            });
+
             setTimeout(() => {
                 setStatus({ type: '', message: '' });
             }, 3000);
 
-            // Trigger refresh of expense data
             onExpenseAdded?.();
         } catch (error) {
             console.error('Error adding expense:', error);
 
-            if (!navigator.onLine) {
-                setStatus({
-                    type: 'error',
-                    message: 'Failed to save expense offline. Please try again.',
-                });
-            } else {
-                setStatus({
-                    type: 'error',
-                    message: error.message || 'Failed to add expense',
-                });
-            }
+            setStatus({
+                type: 'error',
+                message: !navigator.onLine
+                    ? 'Failed to save expense offline. Please try again.'
+                    : error.message || 'Failed to add expense',
+            });
+
+            toast({
+                variant: 'destructive',
+                title: 'Error',
+                description: !navigator.onLine
+                    ? 'Failed to save expense offline. Please try again.'
+                    : error.message || 'Failed to add expense',
+            });
         }
     };
 

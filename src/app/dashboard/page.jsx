@@ -77,22 +77,10 @@ export default function DashboardPage() {
                     title: "You're back online",
                     description: 'Syncing your data...',
                 });
-                // Updated service worker registration
-                if ('serviceWorker' in navigator && 'SyncManager' in window) {
-                    navigator.serviceWorker
-                        .register('/sw.js')
-                        .then(async registration => {
-                            // Clear old caches first
-                            const keys = await caches.keys();
-                            await Promise.all(
-                                keys.filter(key => key.includes('api-cache')).map(key => caches.delete(key))
-                            );
-
-                            registration.sync.register('sync-expenses');
-                        })
-                        .catch(error => {
-                            console.error('ServiceWorker registration failed:', error);
-                        });
+                // Trigger sync and refresh data
+                if (navigator.serviceWorker?.controller) {
+                    navigator.serviceWorker.controller.postMessage({ type: 'TRIGGER_SYNC' });
+                    fetchData(); // Refresh data after coming online
                 }
             } else {
                 toast({
@@ -105,13 +93,15 @@ export default function DashboardPage() {
         window.addEventListener('online', updateOnlineStatus);
         window.addEventListener('offline', updateOnlineStatus);
 
-        // Set initial online status and register service worker
-        setIsOnline(navigator.onLine);
-        if ('serviceWorker' in navigator && 'SyncManager' in window) {
+        // Register service worker once
+        if ('serviceWorker' in navigator) {
             navigator.serviceWorker
                 .register('/sw.js')
                 .then(registration => {
-                    registration.sync.register('sync-expenses');
+                    console.log('ServiceWorker registration successful');
+                    if (navigator.onLine) {
+                        registration.sync.register('sync-expenses').catch(console.error);
+                    }
                 })
                 .catch(error => {
                     console.error('ServiceWorker registration failed:', error);

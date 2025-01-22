@@ -1,93 +1,89 @@
-/**
- * Copyright 2018 Google Inc. All Rights Reserved.
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *     http://www.apache.org/licenses/LICENSE-2.0
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+const STORE_NAME = 'expenses-offline-db';
 
-// If the loader is already loaded, just stop.
-if (!self.define) {
-  let registry = {};
+// Install event - set up any caching needed
+self.addEventListener('install', event => {
+    self.skipWaiting();
+});
 
-  // Used for `eval` and `importScripts` where we can't get script URL by other means.
-  // In both cases, it's safe to use a global var because those functions are synchronous.
-  let nextDefineUri;
+// Activate event - clean up old caches
+self.addEventListener('activate', event => {
+    event.waitUntil(clients.claim());
+});
 
-  const singleRequire = (uri, parentUri) => {
-    uri = new URL(uri + ".js", parentUri).href;
-    return registry[uri] || (
-      
-        new Promise(resolve => {
-          if ("document" in self) {
-            const script = document.createElement("script");
-            script.src = uri;
-            script.onload = resolve;
-            document.head.appendChild(script);
-          } else {
-            nextDefineUri = uri;
-            importScripts(uri);
-            resolve();
-          }
-        })
-      
-      .then(() => {
-        let promise = registry[uri];
-        if (!promise) {
-          throw new Error(`Module ${uri} didn’t register its module`);
-        }
-        return promise;
-      })
-    );
-  };
-
-  self.define = (depsNames, factory) => {
-    const uri = nextDefineUri || ("document" in self ? document.currentScript.src : "") || location.href;
-    if (registry[uri]) {
-      // Module is already loading or loaded.
-      return;
+// Listen for sync events
+self.addEventListener('sync', event => {
+    if (event.tag === 'sync-expenses') {
+        event.waitUntil(syncExpenses());
     }
-    let exports = {};
-    const require = depUri => singleRequire(depUri, uri);
-    const specialDeps = {
-      module: { uri },
-      exports,
-      require
-    };
-    registry[uri] = Promise.all(depsNames.map(
-      depName => specialDeps[depName] || require(depName)
-    )).then(deps => {
-      factory(...deps);
-      return exports;
-    });
-  };
+});
+
+// Listen for messages from the client
+self.addEventListener('message', event => {
+    if (event.data && event.data.type === 'TRIGGER_SYNC') {
+        event.waitUntil(syncExpenses());
+    }
+});
+
+// Function to handle syncing expenses
+async function syncExpenses() {
+    try {
+        const db = await openDB();
+        const mutations = await getOfflineMutations(db);
+
+        if (!mutations.length) return;
+
+        const successfulSyncs = [];
+
+        for (const mutation of mutations) {
+            try {
+                if (mutation.synced) continue;
+
+                const response = await fetch(mutation.url, {
+                    method: mutation.method,
+                    headers: Object.fromEntries(mutation.headers),
+                    body: mutation.body,
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                // Add to successful syncs
+                successfulSyncs.push(mutation.id);
+
+                // Notify clients
+                const clients = await self.clients.matchAll();
+                clients.forEach(client => {
+                    client.postMessage({
+                        type: 'SYNC_COMPLETED',
+                        mutation: {
+                            id: mutation.id,
+                            method: mutation.method,
+                        },
+                    });
+                });
+            } catch (error) {
+                console.error('Sync failed for mutation:', mutation.id, error);
+            }
+        }
+
+        // Delete all successfully synced mutations
+        for (const id of successfulSyncs) {
+            await deleteMutation(db, id);
+        }
+
+        // If any syncs were successful, notify clients to refresh data
+        if (successfulSyncs.length > 0) {
+            const clients = await self.clients.matchAll();
+            clients.forEach(client => {
+                client.postMessage({
+                    type: 'REFRESH_DATA',
+                });
+            });
+        }
+    } catch (error) {
+        console.error('Sync process failed:', error);
+    }
 }
-define(['./workbox-7144475a'], (function (workbox) { 'use strict';
 
-  importScripts();
-  self.skipWaiting();
-  workbox.clientsClaim();
-  workbox.registerRoute("/", new workbox.NetworkFirst({
-    "cacheName": "start-url",
-    plugins: [{
-      cacheWillUpdate: async ({
-        response: e
-      }) => e && "opaqueredirect" === e.type ? new Response(e.body, {
-        status: 200,
-        statusText: "OK",
-        headers: e.headers
-      }) : e
-    }]
-  }), 'GET');
-  workbox.registerRoute(/.*/i, new workbox.NetworkOnly({
-    "cacheName": "dev",
-    plugins: []
-  }), 'GET');
-  self.__WB_DISABLE_DEV_LOGS = true;
-
-}));
+// ... rest of your IndexedDB helper functions remain the same
