@@ -1,6 +1,6 @@
 {
     "name": "My Duit App",
-    "short_name": "Expenses",
+    "short_name": "MyDuitApp",
     "description": "Track your daily expenses",
     "start_url": "/",
     "display": "standalone",
