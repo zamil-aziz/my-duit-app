@@ -160,10 +160,18 @@ export const syncOfflineExpenses = async () => {
         const mutations = await store.index('synced').getAll(false);
         console.log('Found unsynced mutations:', mutations);
 
+        if (mutations.length === 0) {
+            console.log('No mutations to sync');
+            return { success: true, synced: 0 };
+        }
+
+        let syncedCount = 0;
+        const errors = [];
+
         for (const mutation of mutations) {
             try {
+                console.log('Processing mutation:', mutation);
                 const expenseData = JSON.parse(mutation.body);
-                console.log('Syncing expense:', expenseData);
 
                 const response = await fetch(mutation.url, {
                     method: mutation.method,
@@ -172,32 +180,30 @@ export const syncOfflineExpenses = async () => {
                     credentials: 'same-origin',
                 });
 
+                const responseText = await response.text();
+                console.log('Server response:', responseText);
+
                 if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                    throw new Error(`HTTP error! status: ${response.status}, response: ${responseText}`);
                 }
 
                 await deleteMutation(mutation.id);
-                console.log('Successfully synced expense:', mutation.id);
-
-                if (navigator.serviceWorker?.controller) {
-                    navigator.serviceWorker.controller.postMessage({
-                        type: 'SYNC_COMPLETED',
-                        success: true,
-                        data: expenseData,
-                    });
-                }
+                console.log('Successfully synced and deleted mutation:', mutation.id);
+                syncedCount++;
             } catch (error) {
-                console.error('Error syncing mutation:', error);
-                const updateTx = db.transaction([STORE_NAME], 'readwrite');
-                const updateStore = updateTx.objectStore(STORE_NAME);
-                mutation.retryCount = (mutation.retryCount || 0) + 1;
-                if (mutation.retryCount >= 3) {
-                    mutation.syncFailed = true;
-                    mutation.failureReason = error.message;
-                }
-                await updateStore.put(mutation);
+                console.error('Error processing mutation:', error);
+                errors.push({
+                    mutationId: mutation.id,
+                    error: error.message,
+                });
             }
         }
+
+        if (errors.length > 0) {
+            throw new Error(`Failed to sync ${errors.length} mutations. First error: ${errors[0].error}`);
+        }
+
+        return { success: true, synced: syncedCount };
     } catch (error) {
         console.error('Fatal sync error:', error);
         throw error;

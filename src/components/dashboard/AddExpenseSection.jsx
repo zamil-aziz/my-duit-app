@@ -48,34 +48,51 @@ export function AddExpenseSection({ onExpenseAdded }) {
 
                     // Try direct sync first with error logging
                     try {
-                        await syncOfflineExpenses();
-                        console.log('Direct sync completed successfully');
-                    } catch (syncError) {
-                        console.error('Direct sync failed:', syncError);
-                        // Continue to background sync even if direct sync fails
-                    }
+                        console.log('Starting direct sync...');
+                        const syncResult = await syncOfflineExpenses();
+                        console.log('Direct sync completed, result:', syncResult);
 
-                    // Register background sync as backup
-                    try {
-                        const registration = await navigator.serviceWorker.ready;
-                        await registration.sync.register('sync-expenses');
-                        console.log('Background sync registered successfully');
-                    } catch (regError) {
-                        console.error('Failed to register background sync:', regError);
+                        // Only trigger refresh if sync was successful
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                        onExpenseAdded?.();
+                    } catch (syncError) {
+                        console.error('Direct sync failed with error:', syncError);
+
+                        // Don't auto-refresh on error, let user retry
+                        toast({
+                            variant: 'destructive',
+                            title: 'Sync Failed',
+                            description: 'Failed to sync offline changes. Tap to retry.',
+                            action: async () => {
+                                try {
+                                    await syncOfflineExpenses();
+                                    onExpenseAdded?.();
+                                } catch (retryError) {
+                                    console.error('Retry sync failed:', retryError);
+                                }
+                            },
+                        });
+
+                        // Still try background sync as fallback
+                        try {
+                            const registration = await navigator.serviceWorker.ready;
+                            await registration.sync.register('sync-expenses');
+                            console.log('Background sync registered as fallback');
+                        } catch (regError) {
+                            console.error('Failed to register background sync:', regError);
+                        }
                     }
                 } else {
                     console.log('No offline data to sync');
                 }
-
-                // Wait a bit longer for sync to complete
-                await new Promise(resolve => setTimeout(resolve, 2000));
-                onExpenseAdded?.();
             } catch (error) {
                 console.error('Error during online transition:', error);
+                // Prevent auto-refresh on error
                 toast({
                     variant: 'destructive',
                     title: 'Sync Error',
-                    description: 'Failed to sync changes. Will retry automatically.',
+                    description: error.message || 'Failed to sync changes',
+                    duration: 5000, // Keep the message visible longer
                 });
             }
         };
