@@ -1,5 +1,3 @@
-// src/lib/indexedDB.js
-
 const DB_NAME = 'expenses-offline-db';
 const STORE_NAME = 'offline-mutations';
 
