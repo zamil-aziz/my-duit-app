@@ -200,19 +200,19 @@ export default function DashboardPage() {
                         <div className='flex gap-3 min-w-max'>
                             <StatsCard
                                 title='Total Spent'
-                                value={`RM ${data.summary.totalSpent.toFixed(2)}`}
+                                value={data.summary.totalSpent.toFixed(2)}
                                 iconName='Wallet'
                                 gradient='from-purple-500 to-blue-500'
                             />
                             <StatsCard
                                 title='Monthly Average'
-                                value={`RM ${data.summary.monthlyAverage.toFixed(2)}`}
+                                value={data.summary.monthlyAverage.toFixed(2)}
                                 iconName='Calendar'
                                 gradient='from-emerald-500 to-teal-500'
                             />
                             <StatsCard
                                 title='Largest Expense'
-                                value={`RM ${data.summary.largestExpense.toFixed(2)}`}
+                                value={data.summary.largestExpense.toFixed(2)}
                                 iconName='Tag'
                                 gradient='from-orange-500 to-red-500'
                             />
