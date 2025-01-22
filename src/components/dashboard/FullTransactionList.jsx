@@ -3,8 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, Trash2, Edit2 } from 'lucide-react';
 import { useState } from 'react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle, CheckCircle } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -28,9 +27,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 export function FullTransactionList({ transactions, onBack, onTransactionDeleted, onTransactionUpdated }) {
+    const { toast } = useToast();
     const [deletingId, setDeletingId] = useState(null);
     const [editingTransaction, setEditingTransaction] = useState(null);
-    const [status, setStatus] = useState({ type: '', message: '' });
     const [editForm, setEditForm] = useState({
         amount: '',
         description: '',
@@ -59,9 +58,10 @@ export function FullTransactionList({ transactions, onBack, onTransactionDeleted
             const token = localStorage.getItem('token');
 
             if (!token) {
-                setStatus({
-                    type: 'error',
-                    message: 'You need to be logged in to update transactions.',
+                toast({
+                    variant: 'destructive',
+                    title: 'Authentication Error',
+                    description: 'You need to be logged in to update transactions.',
                 });
                 return;
             }
@@ -85,14 +85,10 @@ export function FullTransactionList({ transactions, onBack, onTransactionDeleted
                 throw new Error(data.error || 'Failed to update expense');
             }
 
-            setStatus({
-                type: 'success',
-                message: 'Transaction updated successfully!',
+            toast({
+                title: 'Success',
+                description: 'Transaction updated successfully!',
             });
-
-            setTimeout(() => {
-                setStatus({ type: '', message: '' });
-            }, 3000);
 
             if (onTransactionUpdated) {
                 onTransactionUpdated(data);
@@ -101,9 +97,10 @@ export function FullTransactionList({ transactions, onBack, onTransactionDeleted
             setEditingTransaction(null);
         } catch (error) {
             console.error('Error updating expense:', error);
-            setStatus({
-                type: 'error',
-                message: error.message || 'Failed to update transaction. Please try again.',
+            toast({
+                variant: 'destructive',
+                title: 'Error',
+                description: error.message || 'Failed to update transaction. Please try again.',
             });
         }
     };
@@ -114,9 +111,10 @@ export function FullTransactionList({ transactions, onBack, onTransactionDeleted
             const token = localStorage.getItem('token');
 
             if (!token) {
-                setStatus({
-                    type: 'error',
-                    message: 'You need to be logged in to delete transactions.',
+                toast({
+                    variant: 'destructive',
+                    title: 'Authentication Error',
+                    description: 'You need to be logged in to delete transactions.',
                 });
                 return;
             }
@@ -135,23 +133,20 @@ export function FullTransactionList({ transactions, onBack, onTransactionDeleted
                 throw new Error(data.error || 'Failed to delete expense');
             }
 
-            setStatus({
-                type: 'success',
-                message: 'Transaction deleted successfully!',
+            toast({
+                title: 'Success',
+                description: 'Transaction deleted successfully!',
             });
-
-            setTimeout(() => {
-                setStatus({ type: '', message: '' });
-            }, 3000);
 
             if (onTransactionDeleted) {
                 onTransactionDeleted(id);
             }
         } catch (error) {
             console.error('Error deleting expense:', error);
-            setStatus({
-                type: 'error',
-                message: error.message || 'Failed to delete transaction. Please try again.',
+            toast({
+                variant: 'destructive',
+                title: 'Error',
+                description: error.message || 'Failed to delete transaction. Please try again.',
             });
         } finally {
             setDeletingId(null);
@@ -179,18 +174,6 @@ export function FullTransactionList({ transactions, onBack, onTransactionDeleted
             </CardHeader>
             <CardContent className='px-0'>
                 <div>
-                    {status.type === 'error' && (
-                        <Alert variant='destructive' className='mb-4 mx-2 bg-red-900/50 border-red-900 text-red-300'>
-                            <AlertCircle className='h-4 w-4' />
-                            <AlertDescription>{status.message}</AlertDescription>
-                        </Alert>
-                    )}
-                    {status.type === 'success' && (
-                        <Alert className='mb-4 mx-2 bg-green-900/50 border-green-900 text-green-300'>
-                            <CheckCircle className='h-4 w-4' />
-                            <AlertDescription>{status.message}</AlertDescription>
-                        </Alert>
-                    )}
                     <div className='sticky top-0 grid grid-cols-12 gap-1 sm:gap-3 py-1 px-2 sm:px-3 bg-gray-900/90 backdrop-blur-sm border-b border-gray-800'>
                         <p className='text-[10px] font-medium text-gray-500 col-span-5'>DATE</p>
                         <p className='text-[10px] font-medium text-gray-500 col-span-3'>DESCRIPTION</p>

@@ -7,7 +7,6 @@ import { TransactionSection } from '@/components/dashboard/TransactionSection';
 import { BarChart2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import LoadingSpinner from '@/components/LoadingSpinner';
-import { Toaster, toast } from '@/components/ui/toaster';
 
 export default function DashboardPage() {
     const router = useRouter();
@@ -57,10 +56,6 @@ export default function DashboardPage() {
                         expenses: cachedData.expenses,
                         summary: cachedData.summary,
                     });
-                    toast({
-                        title: 'Using cached data',
-                        description: "You're offline. Showing last cached data.",
-                    });
                 }
             }
         } finally {
@@ -72,21 +67,9 @@ export default function DashboardPage() {
         const updateOnlineStatus = () => {
             const online = navigator.onLine;
             setIsOnline(online);
-            if (online) {
-                toast({
-                    title: "You're back online",
-                    description: 'Syncing your data...',
-                });
-                // Trigger sync and refresh data
-                if (navigator.serviceWorker?.controller) {
-                    navigator.serviceWorker.controller.postMessage({ type: 'TRIGGER_SYNC' });
-                    fetchData(); // Refresh data after coming online
-                }
-            } else {
-                toast({
-                    title: "You're offline",
-                    description: "You can still add expenses. They'll sync when you're back online.",
-                });
+            if (online && navigator.serviceWorker?.controller) {
+                navigator.serviceWorker.controller.postMessage({ type: 'TRIGGER_SYNC' });
+                fetchData();
             }
         };
 
@@ -134,34 +117,16 @@ export default function DashboardPage() {
         router.push('/login');
     };
 
-    const handleTransactionDeleted = async deletedId => {
-        if (!isOnline) {
-            toast({
-                title: "You're offline",
-                description: "Delete operation will sync when you're back online.",
-            });
-        }
-        await fetchData(); // Refresh all data after deletion
+    const handleTransactionDeleted = async () => {
+        await fetchData();
     };
 
-    const handleTransactionUpdated = async updatedTransaction => {
-        if (!isOnline) {
-            toast({
-                title: "You're offline",
-                description: "Update will sync when you're back online.",
-            });
-        }
-        await fetchData(); // Refresh all data after update
+    const handleTransactionUpdated = async () => {
+        await fetchData();
     };
 
     const handleExpenseAdded = async () => {
-        if (!isOnline) {
-            toast({
-                title: "You're offline",
-                description: "Expense saved locally. Will sync when you're back online.",
-            });
-        }
-        await fetchData(); // Refresh all data after adding new expense
+        await fetchData();
     };
 
     if (!user || isLoading) {
@@ -269,7 +234,6 @@ export default function DashboardPage() {
                     </div>
                 </div>
             </div>
-            <Toaster />
         </>
     );
 }
