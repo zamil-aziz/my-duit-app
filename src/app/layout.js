@@ -1,5 +1,6 @@
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
+import { Toaster } from '@/components/ui/toaster';
 
 const geistSans = Geist({
     variable: '--font-geist-sans',
@@ -51,14 +52,17 @@ export const metadata = {
     other: {
         'msapplication-TileColor': '#000000',
         'msapplication-tap-highlight': 'no',
-        'msapplication-TileImage': '/image.png', // Add this for Microsoft tile
+        'msapplication-TileImage': '/image.png',
     },
 };
 
 export default function RootLayout({ children }) {
     return (
         <html lang='en'>
-            <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>{children}</body>
+            <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+                {children}
+                <Toaster />
+            </body>
         </html>
     );
 }
