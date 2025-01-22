@@ -1,275 +1,210 @@
 'use client';
-import { useEffect, useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { StatsCard } from '@/components/dashboard/StatsCard';
-import { AddExpenseSection } from '@/components/dashboard/AddExpenseSection';
-import { TransactionSection } from '@/components/dashboard/TransactionSection';
-import { BarChart2 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import LoadingSpinner from '@/components/LoadingSpinner';
-import { Toaster, toast } from '@/components/ui/toaster';
+import { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { AddExpense } from '@/components/dashboard/AddExpense';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AlertCircle, CheckCircle, WifiOff } from 'lucide-react';
+import { addOfflineExpense } from '@/lib/indexedDB';
+import { toast } from '@/components/ui/toast';
 
-export default function DashboardPage() {
-    const router = useRouter();
-    const [user, setUser] = useState(null);
-    const [isLoading, setIsLoading] = useState(true);
+export function AddExpenseSection({ onExpenseAdded }) {
+    const [status, setStatus] = useState({ type: '', message: '' });
     const [isOnline, setIsOnline] = useState(true);
-    const [data, setData] = useState({
-        expenses: [],
-        summary: {
-            totalSpent: 0,
-            monthlyAverage: 0,
-            largestExpense: 0,
-        },
-    });
-
-    const fetchData = async () => {
-        setIsLoading(true);
-        const token = localStorage.getItem('token');
-        try {
-            const response = await fetch('/api/expenses', {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    'Cache-Control': 'no-cache',
-                    Pragma: 'no-cache',
-                },
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to fetch expenses');
-            }
-
-            const responseData = await response.json();
-            setData({
-                expenses: responseData.expenses,
-                summary: responseData.summary,
-            });
-            setUser(responseData.user);
-        } catch (error) {
-            console.error('Error fetching data:', error);
-            // Try to get data from cache if offline
-            if (!navigator.onLine) {
-                const cache = await caches.open('api-cache');
-                const cachedResponse = await cache.match('/api/expenses');
-                if (cachedResponse) {
-                    const cachedData = await cachedResponse.json();
-                    setData({
-                        expenses: cachedData.expenses,
-                        summary: cachedData.summary,
-                    });
-                    toast({
-                        title: 'Using cached data',
-                        description: "You're offline. Showing last cached data.",
-                    });
-                }
-            }
-        } finally {
-            setIsLoading(false);
-        }
-    };
 
     useEffect(() => {
-        const updateOnlineStatus = () => {
-            const online = navigator.onLine;
-            setIsOnline(online);
-            if (online) {
+        // Set initial online status and register service worker
+        setIsOnline(navigator.onLine);
+
+        // Enhanced online handler
+        const handleOnline = async () => {
+            setIsOnline(true);
+            toast({
+                title: "You're back online",
+                description: 'Syncing your data...',
+            });
+            try {
+                const registration = await navigator.serviceWorker.ready;
+                await registration.sync.register('sync-expenses');
+                setTimeout(() => {
+                    onExpenseAdded?.();
+                }, 1000);
+            } catch (error) {
+                console.error('Error triggering sync:', error);
+            }
+        };
+
+        const handleOffline = () => {
+            setIsOnline(false);
+            toast({
+                title: "You're offline",
+                description: "Changes will be saved locally and synced when you're back online.",
+            });
+        };
+
+        const handleMessage = event => {
+            if (event.data?.type === 'SYNC_COMPLETED') {
+                console.log('Sync completed:', event.data);
+                onExpenseAdded?.();
                 toast({
-                    title: "You're back online",
-                    description: 'Syncing your data...',
-                });
-                // Trigger sync and refresh data
-                if (navigator.serviceWorker?.controller) {
-                    navigator.serviceWorker.controller.postMessage({ type: 'TRIGGER_SYNC' });
-                    fetchData(); // Refresh data after coming online
-                }
-            } else {
-                toast({
-                    title: "You're offline",
-                    description: "You can still add expenses. They'll sync when you're back online.",
+                    title: 'Sync complete',
+                    description: 'Your offline changes have been synchronized.',
                 });
             }
         };
 
-        window.addEventListener('online', updateOnlineStatus);
-        window.addEventListener('offline', updateOnlineStatus);
+        window.addEventListener('online', handleOnline);
+        window.addEventListener('offline', handleOffline);
+        navigator.serviceWorker?.addEventListener('message', handleMessage);
 
-        // Register service worker once
+        // Register service worker if needed
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker
                 .register('/sw.js')
-                .then(registration => {
-                    console.log('ServiceWorker registration successful');
+                .then(async registration => {
                     if (navigator.onLine) {
-                        registration.sync.register('sync-expenses').catch(console.error);
+                        try {
+                            await registration.sync.register('sync-expenses');
+                        } catch (error) {
+                            console.error('Failed to register sync:', error);
+                        }
                     }
                 })
-                .catch(error => {
-                    console.error('ServiceWorker registration failed:', error);
-                });
+                .catch(console.error);
         }
 
         return () => {
-            window.removeEventListener('online', updateOnlineStatus);
-            window.removeEventListener('offline', updateOnlineStatus);
+            window.removeEventListener('online', handleOnline);
+            window.removeEventListener('offline', handleOffline);
+            navigator.serviceWorker?.removeEventListener('message', handleMessage);
         };
-    }, []);
+    }, [onExpenseAdded]);
 
-    useEffect(() => {
-        // Check if user is logged in
-        const storedUser = localStorage.getItem('user');
-        const token = localStorage.getItem('token');
+    const handleAddExpense = async expenseData => {
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                throw new Error('Not authenticated');
+            }
 
-        if (!storedUser || !token) {
-            router.push('/login');
-            return;
-        }
+            const expense = {
+                ...expenseData,
+                token,
+                timestamp: Date.now(),
+                id: crypto.randomUUID(),
+            };
 
-        setUser(JSON.parse(storedUser));
-        fetchData(); // Initial data fetch
-    }, [router]);
+            // Check if we're offline first
+            if (!navigator.onLine) {
+                try {
+                    await addOfflineExpense(expense);
 
-    const handleLogout = () => {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        router.push('/login');
-    };
+                    setStatus({
+                        type: 'info',
+                        message: "You're offline. Expense saved and will sync when you're back online.",
+                    });
 
-    const handleTransactionDeleted = async deletedId => {
-        if (!isOnline) {
+                    toast({
+                        title: 'Expense Saved Offline',
+                        description: "Your expense has been saved locally and will sync when you're back online.",
+                    });
+
+                    // Request sync if available
+                    if (navigator.serviceWorker?.controller) {
+                        navigator.serviceWorker.controller.postMessage({ type: 'TRIGGER_SYNC' });
+                    }
+
+                    onExpenseAdded?.();
+                    return;
+                } catch (offlineError) {
+                    console.error('Failed to save offline:', offlineError);
+                    throw new Error('Failed to save expense offline');
+                }
+            }
+
+            // Online flow
+            const response = await fetch('/api/expenses/add', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify(expense),
+            });
+
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.error || 'Failed to add expense');
+            }
+
+            setStatus({
+                type: 'success',
+                message: 'Expense added successfully!',
+            });
+
             toast({
-                title: "You're offline",
-                description: "Delete operation will sync when you're back online.",
+                title: 'Success',
+                description: 'Expense added successfully!',
+            });
+
+            setTimeout(() => {
+                setStatus({ type: '', message: '' });
+            }, 3000);
+
+            onExpenseAdded?.();
+        } catch (error) {
+            console.error('Error adding expense:', error);
+
+            setStatus({
+                type: 'error',
+                message: !navigator.onLine
+                    ? 'Failed to save expense offline. Please try again.'
+                    : error.message || 'Failed to add expense',
+            });
+
+            toast({
+                variant: 'destructive',
+                title: 'Error',
+                description: !navigator.onLine
+                    ? 'Failed to save expense offline. Please try again.'
+                    : error.message || 'Failed to add expense',
             });
         }
-        await fetchData(); // Refresh all data after deletion
     };
-
-    const handleTransactionUpdated = async updatedTransaction => {
-        if (!isOnline) {
-            toast({
-                title: "You're offline",
-                description: "Update will sync when you're back online.",
-            });
-        }
-        await fetchData(); // Refresh all data after update
-    };
-
-    const handleExpenseAdded = async () => {
-        if (!isOnline) {
-            toast({
-                title: "You're offline",
-                description: "Expense saved locally. Will sync when you're back online.",
-            });
-        }
-        await fetchData(); // Refresh all data after adding new expense
-    };
-
-    if (!user || isLoading) {
-        return (
-            <div className='min-h-screen bg-gray-950 flex items-center justify-center'>
-                <LoadingSpinner size='large' />
-            </div>
-        );
-    }
 
     return (
-        <>
-            <div className='flex flex-col lg:flex-row min-h-screen bg-gray-950'>
-                {/* Mobile Header */}
-                <div className='lg:hidden bg-gray-900 p-4 flex items-center justify-between'>
-                    <div className='flex items-center space-x-2'>
-                        <BarChart2 className='w-6 h-6 text-blue-500' />
-                        <span className='text-lg font-bold text-white'>MyDuitApp</span>
-                    </div>
-                    <div className='flex'>
-                        <Button
-                            variant='ghost'
-                            className='w-full justify-start text-white hover:bg-gray-800'
-                            onClick={handleLogout}
-                        >
-                            Logout
-                        </Button>
-                    </div>
-                </div>
-
-                {/* Desktop Sidebar */}
-                <div className='hidden lg:block w-64 bg-gray-900 p-6'>
-                    <div className='flex items-center space-x-2 mb-8'>
-                        <BarChart2 className='w-8 h-8 text-blue-500' />
-                        <span className='text-xl font-bold text-white'>Finance</span>
-                    </div>
-                    <nav className='space-y-2'>
-                        <Button
-                            variant='ghost'
-                            className='w-full justify-start text-white hover:bg-gray-800'
-                            onClick={handleLogout}
-                        >
-                            Logout
-                        </Button>
-                    </nav>
-                </div>
-
-                {/* Main Content */}
-                <div className='flex-1 p-4 lg:p-8'>
-                    {/* Online/Offline Status */}
+        <Card className='border-0 bg-gray-900/50 backdrop-blur-sm h-full'>
+            <CardHeader>
+                <CardTitle className='text-lg font-semibold text-white flex items-center justify-between'>
+                    <span>Add Expense</span>
                     {!isOnline && (
-                        <div className='bg-yellow-500/10 text-yellow-500 px-4 py-2 rounded-lg mb-4 text-sm flex items-center justify-between'>
-                            <span>You're currently offline. Changes will sync when you're back online.</span>
+                        <div className='flex items-center text-yellow-500 text-sm'>
+                            <WifiOff className='h-4 w-4 mr-1' />
+                            <span>Offline Mode</span>
                         </div>
                     )}
-
-                    {/* Header Section */}
-                    <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4'>
-                        <div>
-                            <h1 className='text-2xl lg:text-3xl font-bold text-white mb-1'>
-                                Welcome back, {user.name}
-                            </h1>
-                            <p className='text-sm lg:text-base text-gray-400'>
-                                Track your expenses and manage your budget
-                            </p>
-                        </div>
-                    </div>
-
-                    {/* Stats Container */}
-                    <div className='overflow-x-auto pb-4 -mx-4 px-4 mb-6'>
-                        <div className='flex gap-3 min-w-max'>
-                            <StatsCard
-                                title='Total Spent'
-                                value={`RM ${data.summary.totalSpent.toFixed(2)}`}
-                                iconName='Wallet'
-                                gradient='from-purple-500 to-blue-500'
-                            />
-                            <StatsCard
-                                title='Monthly Average'
-                                value={`RM ${data.summary.monthlyAverage.toFixed(2)}`}
-                                iconName='Calendar'
-                                gradient='from-emerald-500 to-teal-500'
-                            />
-                            <StatsCard
-                                title='Largest Expense'
-                                value={`RM ${data.summary.largestExpense.toFixed(2)}`}
-                                iconName='Tag'
-                                gradient='from-orange-500 to-red-500'
-                            />
-                        </div>
-                    </div>
-
-                    {/* Main Grid */}
-                    <div className='grid grid-cols-1 lg:grid-cols-5 gap-4 lg:gap-8'>
-                        <div className='lg:col-span-2'>
-                            <AddExpenseSection userId={user.id} onExpenseAdded={handleExpenseAdded} />
-                        </div>
-                        <div className='lg:col-span-3'>
-                            <TransactionSection
-                                transactions={data.expenses}
-                                onTransactionDeleted={handleTransactionDeleted}
-                                onTransactionUpdated={handleTransactionUpdated}
-                            />
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <Toaster />
-        </>
+                </CardTitle>
+            </CardHeader>
+            <CardContent>
+                {status.type === 'error' && (
+                    <Alert variant='destructive' className='mb-4 bg-red-900/50 border-red-900 text-red-300'>
+                        <AlertCircle className='h-4 w-4' />
+                        <AlertDescription>{status.message}</AlertDescription>
+                    </Alert>
+                )}
+                {status.type === 'success' && (
+                    <Alert className='mb-4 bg-green-900/50 border-green-900 text-green-300'>
+                        <CheckCircle className='h-4 w-4' />
+                        <AlertDescription>{status.message}</AlertDescription>
+                    </Alert>
+                )}
+                {status.type === 'info' && (
+                    <Alert className='mb-4 bg-blue-900/50 border-blue-900 text-blue-300'>
+                        <AlertCircle className='h-4 w-4' />
+                        <AlertDescription>{status.message}</AlertDescription>
+                    </Alert>
+                )}
+                <AddExpense onSubmit={handleAddExpense} />
+            </CardContent>
+        </Card>
     );
 }
