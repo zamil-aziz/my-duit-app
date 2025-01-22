@@ -13,15 +13,48 @@ const nextConfigFunction = async phase => {
             cacheOnFrontendNav: true,
             aggressiveFrontEndNavCaching: true,
             reloadOnOnline: true,
-            // disable: process.env.NODE_ENV === 'development',
-            disable: false,
+            disable: process.env.NODE_ENV === 'development',
+            register: true,
+            fallbacks: {
+                document: '/~offline', // Removed /page suffix
+            },
+            buildExcludes: [/middleware-manifest\.json$/], // Add this to exclude middleware manifest
             workboxOptions: {
+                skipWaiting: true,
+                clientsClaim: true,
+                cleanupOutdatedCaches: true,
                 runtimeCaching: [
                     {
-                        urlPattern: /^https:\/\/fonts\./,
-                        handler: 'StaleWhileRevalidate',
+                        urlPattern: /\/_next\/static\/.*/i,
+                        handler: 'CacheFirst',
                         options: {
-                            cacheName: 'google-fonts',
+                            cacheName: 'static-assets',
+                            expiration: {
+                                maxAgeSeconds: 7 * 24 * 60 * 60, // 7 days
+                                maxEntries: 100,
+                            },
+                        },
+                    },
+                    {
+                        urlPattern: /(.*?)\/(api\/expenses|_next\/data\/.*)/,
+                        handler: 'NetworkFirst',
+                        options: {
+                            cacheName: 'api-cache',
+                            networkTimeoutSeconds: 10,
+                            expiration: {
+                                maxEntries: 50,
+                            },
+                        },
+                    },
+                    {
+                        urlPattern: ({ request, url }) => {
+                            const isSameOrigin = self.origin === url.origin;
+                            return isSameOrigin && request.destination === 'document';
+                        },
+                        handler: 'NetworkFirst',
+                        options: {
+                            cacheName: 'pages-cache',
+                            networkTimeoutSeconds: 3,
                         },
                     },
                     {
@@ -29,6 +62,16 @@ const nextConfigFunction = async phase => {
                         handler: 'CacheFirst',
                         options: {
                             cacheName: 'image-cache',
+                            expiration: {
+                                maxEntries: 50,
+                            },
+                        },
+                    },
+                    {
+                        urlPattern: /^https:\/\/fonts\./,
+                        handler: 'StaleWhileRevalidate',
+                        options: {
+                            cacheName: 'google-fonts',
                         },
                     },
                 ],
