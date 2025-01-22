@@ -32,29 +32,50 @@ export function AddExpenseSection({ onExpenseAdded }) {
         setIsOnline(navigator.onLine);
 
         const handleOnline = async () => {
-            setIsOnline(true);
-            toast({
-                title: "You're back online",
-                description: 'Syncing your data...',
-            });
             try {
-                const registration = await navigator.serviceWorker.ready;
+                setIsOnline(true);
+                console.log('Device went online, starting sync process...');
 
-                // Try direct sync first
-                await syncOfflineExpenses();
+                // First, check database status
+                const dbStatus = await checkDatabaseStatus();
+                console.log('Database status before sync:', dbStatus);
 
-                // Then register background sync as backup
-                await registration.sync.register('sync-expenses');
+                if (dbStatus.count > 0) {
+                    toast({
+                        title: "You're back online",
+                        description: 'Syncing your data...',
+                    });
 
-                // Give a small delay for the sync to complete
-                await new Promise(resolve => setTimeout(resolve, 1000));
+                    // Try direct sync first with error logging
+                    try {
+                        await syncOfflineExpenses();
+                        console.log('Direct sync completed successfully');
+                    } catch (syncError) {
+                        console.error('Direct sync failed:', syncError);
+                        // Continue to background sync even if direct sync fails
+                    }
+
+                    // Register background sync as backup
+                    try {
+                        const registration = await navigator.serviceWorker.ready;
+                        await registration.sync.register('sync-expenses');
+                        console.log('Background sync registered successfully');
+                    } catch (regError) {
+                        console.error('Failed to register background sync:', regError);
+                    }
+                } else {
+                    console.log('No offline data to sync');
+                }
+
+                // Wait a bit longer for sync to complete
+                await new Promise(resolve => setTimeout(resolve, 2000));
                 onExpenseAdded?.();
             } catch (error) {
-                console.error('Error during sync:', error);
+                console.error('Error during online transition:', error);
                 toast({
                     variant: 'destructive',
-                    title: 'Sync Failed',
-                    description: 'Failed to sync offline changes. Please try again.',
+                    title: 'Sync Error',
+                    description: 'Failed to sync changes. Will retry automatically.',
                 });
             }
         };
