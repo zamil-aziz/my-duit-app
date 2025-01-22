@@ -1,10 +1,17 @@
 'use client';
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AddExpense } from './AddExpense';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle, CheckCircle, WifiOff } from 'lucide-react';
-import { addOfflineExpense } from '@/lib/indexedDB';
+import {
+    addOfflineExpense,
+    checkDatabaseStatus,
+    getAllStoredExpenses,
+    getExpenseById,
+    syncOfflineExpenses,
+} from '@/lib/indexedDB';
 import { useToast } from '@/hooks/use-toast';
 
 export function AddExpenseSection({ onExpenseAdded }) {
@@ -13,10 +20,17 @@ export function AddExpenseSection({ onExpenseAdded }) {
     const { toast } = useToast();
 
     useEffect(() => {
-        // Set initial online status and register service worker
+        const checkDB = async () => {
+            const status = await checkDatabaseStatus();
+            console.log('Database status:', status);
+        };
+
+        checkDB();
+    }, []);
+
+    useEffect(() => {
         setIsOnline(navigator.onLine);
 
-        // Enhanced online handler
         const handleOnline = async () => {
             setIsOnline(true);
             toast({
@@ -25,12 +39,23 @@ export function AddExpenseSection({ onExpenseAdded }) {
             });
             try {
                 const registration = await navigator.serviceWorker.ready;
+
+                // Try direct sync first
+                await syncOfflineExpenses();
+
+                // Then register background sync as backup
                 await registration.sync.register('sync-expenses');
-                setTimeout(() => {
-                    onExpenseAdded?.();
-                }, 1000);
+
+                // Give a small delay for the sync to complete
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                onExpenseAdded?.();
             } catch (error) {
-                console.error('Error triggering sync:', error);
+                console.error('Error during sync:', error);
+                toast({
+                    variant: 'destructive',
+                    title: 'Sync Failed',
+                    description: 'Failed to sync offline changes. Please try again.',
+                });
             }
         };
 
@@ -43,13 +68,32 @@ export function AddExpenseSection({ onExpenseAdded }) {
         };
 
         const handleMessage = event => {
-            if (event.data?.type === 'SYNC_COMPLETED') {
-                console.log('Sync completed:', event.data);
-                onExpenseAdded?.();
-                toast({
-                    title: 'Sync complete',
-                    description: 'Your offline changes have been synchronized.',
-                });
+            switch (event.data?.type) {
+                case 'SYNC_COMPLETED':
+                    onExpenseAdded?.();
+                    toast({
+                        title: 'Sync complete',
+                        description: 'Your changes have been synchronized.',
+                    });
+                    break;
+
+                case 'SYNC_FAILED':
+                    toast({
+                        variant: 'destructive',
+                        title: 'Sync failed',
+                        description: `Failed to sync: ${event.data.error}`,
+                    });
+                    break;
+
+                case 'SYNC_STATUS':
+                    if (event.data.failureCount > 0) {
+                        toast({
+                            variant: 'warning',
+                            title: 'Sync completed with errors',
+                            description: `${event.data.successCount} succeeded, ${event.data.failureCount} failed`,
+                        });
+                    }
+                    break;
             }
         };
 
@@ -57,7 +101,6 @@ export function AddExpenseSection({ onExpenseAdded }) {
         window.addEventListener('offline', handleOffline);
         navigator.serviceWorker?.addEventListener('message', handleMessage);
 
-        // Register service worker if needed
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker
                 .register('/sw.js')
@@ -94,10 +137,18 @@ export function AddExpenseSection({ onExpenseAdded }) {
                 id: crypto.randomUUID(),
             };
 
-            // Check if we're offline first
             if (!navigator.onLine) {
                 try {
-                    await addOfflineExpense(expense);
+                    const savedId = await addOfflineExpense(expense);
+                    console.log('Expense saved with ID:', savedId);
+
+                    // Verify the saved expense
+                    const savedExpense = await getExpenseById(savedId);
+                    console.log('Verified saved expense:', savedExpense);
+
+                    // List all stored expenses
+                    const allExpenses = await getAllStoredExpenses();
+                    console.log('All stored expenses:', allExpenses);
 
                     setStatus({
                         type: 'info',
@@ -109,7 +160,6 @@ export function AddExpenseSection({ onExpenseAdded }) {
                         description: "Your expense has been saved locally and will sync when you're back online.",
                     });
 
-                    // Request sync if available
                     if (navigator.serviceWorker?.controller) {
                         navigator.serviceWorker.controller.postMessage({ type: 'TRIGGER_SYNC' });
                     }
@@ -122,7 +172,6 @@ export function AddExpenseSection({ onExpenseAdded }) {
                 }
             }
 
-            // Online flow
             const response = await fetch('/api/expenses/add', {
                 method: 'POST',
                 headers: {

@@ -34,6 +34,7 @@ const initDB = () => {
                 const store = db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
                 store.createIndex('timestamp', 'timestamp', { unique: false });
                 store.createIndex('synced', 'synced', { unique: false });
+                store.createIndex('retryCount', 'retryCount', { unique: false });
             }
         };
     });
@@ -53,6 +54,7 @@ const serializeRequest = async request => {
         integrity: request.integrity,
         timestamp: Date.now(),
         synced: false,
+        retryCount: 0,
     };
 
     if (request.method !== 'GET') {
@@ -78,6 +80,7 @@ registerRoute(
                 // Store the serialized request
                 const serializedRequest = await serializeRequest(request);
                 await store.add(serializedRequest);
+                console.log('Stored offline request:', serializedRequest);
 
                 // Schedule a sync
                 if ('sync' in self.registration) {
@@ -125,53 +128,69 @@ registerRoute(
     }
 );
 
-// Background sync handler
-self.addEventListener('sync', event => {
-    if (event.tag === 'sync-expenses') {
-        event.waitUntil(syncOfflineMutations());
-    }
-});
-
-// Periodic sync handler (if supported)
-self.addEventListener('periodicsync', event => {
-    if (event.tag === 'sync-expenses') {
-        event.waitUntil(syncOfflineMutations());
-    }
-});
-
 async function syncOfflineMutations() {
+    console.log('Starting offline mutations sync');
     const db = await initDB();
     const tx = db.transaction(STORE_NAME, 'readonly');
     const store = tx.objectStore(STORE_NAME);
-    const mutations = await store.getAll();
 
-    for (const mutation of mutations) {
-        if (mutation.synced) continue;
+    try {
+        const mutations = await store.index('synced').getAll(false);
+        console.log('Found mutations to sync:', mutations.length);
+        let syncedCount = 0;
 
-        try {
-            // Reconstruct the request
-            const request = new Request(mutation.url, {
-                method: mutation.method,
-                headers: new Headers(mutation.headers),
-                body: mutation.body,
-                mode: mutation.mode,
-                credentials: mutation.credentials,
-                cache: mutation.cache,
-                redirect: mutation.redirect,
-                referrer: mutation.referrer,
-                integrity: mutation.integrity,
-            });
+        for (const mutation of mutations) {
+            try {
+                // Parse the stored data
+                const expenseData = JSON.parse(mutation.body);
+                console.log('Processing mutation:', expenseData);
 
-            const response = await fetch(request);
+                // Reconstruct the request with proper headers
+                const headers = new Headers();
+                mutation.headers.forEach(([key, value]) => headers.append(key, value));
 
-            if (response.ok) {
-                // Mark as synced
-                const updateTx = db.transaction(STORE_NAME, 'readwrite');
-                const updateStore = updateTx.objectStore(STORE_NAME);
-                mutation.synced = true;
-                await updateStore.put(mutation);
+                // Ensure the Authorization header is present
+                const token = headers.get('Authorization');
+                if (!token) {
+                    console.error('No authorization token found for mutation:', mutation.id);
+                    continue;
+                }
 
-                // Clear the cached data to force a refresh
+                const request = new Request(mutation.url, {
+                    method: mutation.method,
+                    headers: headers,
+                    body: mutation.body,
+                    mode: 'cors',
+                    credentials: 'same-origin',
+                });
+
+                console.log('Sending sync request:', {
+                    url: mutation.url,
+                    method: mutation.method,
+                    headers: Object.fromEntries(headers.entries()),
+                    body: mutation.body,
+                });
+
+                const response = await fetch(request);
+                console.log('Sync response status:', response.status);
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+                }
+
+                const responseData = await response.json();
+                console.log('Sync response data:', responseData);
+
+                // If sync successful, delete the mutation
+                const deleteTx = db.transaction(STORE_NAME, 'readwrite');
+                const deleteStore = deleteTx.objectStore(STORE_NAME);
+                await deleteStore.delete(mutation.id);
+                console.log('Deleted synced mutation:', mutation.id);
+
+                syncedCount++;
+
+                // Clear relevant caches
                 const cache = await caches.open(EXPENSES_CACHE);
                 const cachedRequests = await cache.keys();
                 for (const cachedRequest of cachedRequests) {
@@ -182,22 +201,76 @@ async function syncOfflineMutations() {
 
                 // Notify all clients
                 const clients = await self.clients.matchAll();
-                clients.forEach(client => {
+                for (const client of clients) {
                     client.postMessage({
                         type: 'SYNC_COMPLETED',
-                        mutation: {
-                            url: mutation.url,
-                            method: mutation.method,
-                            timestamp: mutation.timestamp,
-                        },
+                        success: true,
+                        data: expenseData,
+                        response: responseData,
                     });
-                });
+                }
+            } catch (error) {
+                console.error('Error syncing mutation:', error);
+
+                // Update retry count
+                const updateTx = db.transaction(STORE_NAME, 'readwrite');
+                const updateStore = updateTx.objectStore(STORE_NAME);
+                mutation.retryCount = (mutation.retryCount || 0) + 1;
+
+                if (mutation.retryCount >= 3) {
+                    mutation.syncFailed = true;
+                    mutation.failureReason = error.message;
+
+                    // Notify clients of permanent failure
+                    const clients = await self.clients.matchAll();
+                    for (const client of clients) {
+                        client.postMessage({
+                            type: 'SYNC_FAILED',
+                            error: error.message,
+                            mutation: JSON.parse(mutation.body),
+                        });
+                    }
+                }
+
+                await updateStore.put(mutation);
             }
-        } catch (error) {
-            console.error('Sync failed for mutation:', error);
         }
+
+        // Final sync status notification
+        const clients = await self.clients.matchAll();
+        for (const client of clients) {
+            client.postMessage({
+                type: 'SYNC_STATUS',
+                totalProcessed: mutations.length,
+                successCount: syncedCount,
+                failureCount: mutations.length - syncedCount,
+            });
+        }
+
+        return syncedCount > 0;
+    } catch (error) {
+        console.error('Fatal sync error:', error);
+        throw error;
     }
 }
+
+// Background sync handler
+self.addEventListener('sync', event => {
+    if (event.tag === 'sync-expenses') {
+        console.log('Background sync triggered');
+        event.waitUntil(
+            syncOfflineMutations()
+                .then(hasSync => {
+                    console.log('Sync completed, changes synced:', hasSync);
+                })
+                .catch(error => {
+                    console.error('Background sync failed:', error);
+                    // Only retry if we haven't exceeded the retry limit
+                    return self.registration.sync.register('sync-expenses');
+                })
+        );
+    }
+});
 
 // Cache static resources
 registerRoute(
@@ -236,8 +309,29 @@ registerRoute(
 );
 
 // Listen for messages from clients
-self.addEventListener('message', event => {
-    if (event.data && event.data.type === 'SKIP_WAITING') {
+self.addEventListener('message', async event => {
+    if (event.data?.type === 'TRIGGER_SYNC') {
+        console.log('Manual sync triggered');
+        event.waitUntil(
+            syncOfflineMutations()
+                .then(hasSync => {
+                    console.log('Manual sync completed, changes synced:', hasSync);
+                    // Notify the client that triggered the sync
+                    event.source?.postMessage({
+                        type: 'MANUAL_SYNC_COMPLETED',
+                        success: true,
+                    });
+                })
+                .catch(error => {
+                    console.error('Manual sync failed:', error);
+                    event.source?.postMessage({
+                        type: 'MANUAL_SYNC_COMPLETED',
+                        success: false,
+                        error: error.message,
+                    });
+                })
+        );
+    } else if (event.data?.type === 'SKIP_WAITING') {
         self.skipWaiting();
     }
 });
