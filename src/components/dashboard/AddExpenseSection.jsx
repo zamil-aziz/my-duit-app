@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AddExpense } from './AddExpense';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle, CheckCircle, WifiOff } from 'lucide-react';
+import { addOfflineExpense } from '@/lib/indexedDB';
 
 export function AddExpenseSection({ onExpenseAdded }) {
     const [status, setStatus] = useState({ type: '', message: '' });
@@ -54,6 +55,35 @@ export function AddExpenseSection({ onExpenseAdded }) {
                 throw new Error('Not authenticated');
             }
 
+            // Check if we're offline first
+            if (!navigator.onLine) {
+                try {
+                    await addOfflineExpense({
+                        ...expenseData,
+                        token, // Store the token with the expense for later sync
+                        timestamp: Date.now(),
+                    });
+
+                    setStatus({
+                        type: 'info',
+                        message: "You're offline. Expense saved and will sync when you're back online.",
+                    });
+
+                    // Trigger sync if service worker is available
+                    if ('serviceWorker' in navigator && 'sync' in navigator.serviceWorker.controller) {
+                        const registration = await navigator.serviceWorker.ready;
+                        await registration.sync.register('sync-expenses');
+                    }
+
+                    onExpenseAdded?.();
+                    return;
+                } catch (offlineError) {
+                    console.error('Failed to save offline:', offlineError);
+                    throw new Error('Failed to save expense offline');
+                }
+            }
+
+            // Online flow
             const response = await fetch('/api/expenses/add', {
                 method: 'POST',
                 headers: {
@@ -69,18 +99,10 @@ export function AddExpenseSection({ onExpenseAdded }) {
                 throw new Error(data.error || 'Failed to add expense');
             }
 
-            // Check if the operation was queued for offline sync
-            if (data.status === 'offline') {
-                setStatus({
-                    type: 'info',
-                    message: "You're offline. Expense saved and will sync when you're back online.",
-                });
-            } else {
-                setStatus({
-                    type: 'success',
-                    message: 'Expense added successfully!',
-                });
-            }
+            setStatus({
+                type: 'success',
+                message: 'Expense added successfully!',
+            });
 
             // Clear success/info message after 3 seconds
             setTimeout(() => {
@@ -94,11 +116,9 @@ export function AddExpenseSection({ onExpenseAdded }) {
 
             if (!navigator.onLine) {
                 setStatus({
-                    type: 'info',
-                    message: "You're offline. Expense saved and will sync when you're back online.",
+                    type: 'error',
+                    message: 'Failed to save expense offline. Please try again.',
                 });
-                // Still trigger the refresh to show locally stored data
-                onExpenseAdded?.();
             } else {
                 setStatus({
                     type: 'error',

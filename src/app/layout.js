@@ -23,18 +23,23 @@ export const viewport = {
 
 // Metadata configuration
 export const metadata = {
-    title: 'Expense Tracker',
+    title: 'My Duit App',
     description: 'Track your daily expenses easily',
     manifest: '/manifest.json',
+    icons: {
+        icon: '/image.png',
+        shortcut: '/image.png',
+        apple: '/image.png',
+        other: {
+            rel: 'apple-touch-icon',
+            url: '/image.png',
+        },
+    },
     appleWebApp: {
         capable: true,
         statusBarStyle: 'default',
         title: 'My Duit App',
-        // Add startup images configuration
         startupImage: ['/splash/launch.png'],
-    },
-    icons: {
-        apple: '/icons/icon-192x192.png',
     },
     formatDetection: {
         telephone: true,
@@ -43,10 +48,10 @@ export const metadata = {
         email: true,
         url: true,
     },
-    // Add meta tags for Microsoft
     other: {
         'msapplication-TileColor': '#000000',
         'msapplication-tap-highlight': 'no',
+        'msapplication-TileImage': '/image.png', // Add this for Microsoft tile
     },
 };
 
