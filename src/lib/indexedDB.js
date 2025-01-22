@@ -34,20 +34,42 @@ export const addOfflineExpense = async expense => {
             ['Content-Type', 'application/json'],
             ['Authorization', `Bearer ${expense.token}`],
         ],
-        body: JSON.stringify({
-            amount: expense.amount,
-            description: expense.description,
-            category: expense.category,
-            date: expense.date,
-        }),
+        body: JSON.stringify(expense),
         timestamp: Date.now(),
         synced: false,
     };
 
     return new Promise((resolve, reject) => {
         const request = store.add(serializedExpense);
-        request.onsuccess = () => resolve(request.result);
+
+        request.onsuccess = async () => {
+            // Try to trigger sync after adding
+            if ('serviceWorker' in navigator && 'SyncManager' in window) {
+                try {
+                    const registration = await navigator.serviceWorker.ready;
+                    await registration.sync.register('sync-expenses');
+                } catch (error) {
+                    console.error('Failed to register sync:', error);
+                }
+            } else if (navigator.serviceWorker?.controller) {
+                // Fallback for browsers that don't support background sync
+                navigator.serviceWorker.controller.postMessage({
+                    type: 'TRIGGER_SYNC',
+                });
+            }
+            resolve(request.result);
+        };
+
         request.onerror = () => reject(request.error);
+
+        // Commit the transaction
+        transaction.oncomplete = () => {
+            console.log('Transaction completed');
+        };
+
+        transaction.onerror = () => {
+            console.error('Transaction failed:', transaction.error);
+        };
     });
 };
 
@@ -57,7 +79,7 @@ export const getOfflineMutations = async () => {
     const store = transaction.objectStore(STORE_NAME);
 
     return new Promise((resolve, reject) => {
-        const request = store.getAll();
+        const request = store.index('synced').getAll(false);
         request.onsuccess = () => resolve(request.result);
         request.onerror = () => reject(request.error);
     });
@@ -73,11 +95,14 @@ export const markMutationAsSynced = async id => {
 
         request.onsuccess = () => {
             const mutation = request.result;
-            mutation.synced = true;
-
-            const updateRequest = store.put(mutation);
-            updateRequest.onsuccess = () => resolve();
-            updateRequest.onerror = () => reject(updateRequest.error);
+            if (mutation) {
+                mutation.synced = true;
+                const updateRequest = store.put(mutation);
+                updateRequest.onsuccess = () => resolve();
+                updateRequest.onerror = () => reject(updateRequest.error);
+            } else {
+                resolve(); // Mutation might have been deleted
+            }
         };
 
         request.onerror = () => reject(request.error);
