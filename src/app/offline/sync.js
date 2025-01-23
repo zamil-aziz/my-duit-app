@@ -1,26 +1,33 @@
+import { openDB } from 'idb';
+
 export async function syncOfflineExpenses() {
     try {
         const db = await openDB('expenses-offline-db', 1);
         const offlineData = await db.getAll('offline-mutations');
 
+        console.log('Offline data to sync:', offlineData); // Debug log
+
         const results = await Promise.allSettled(
             offlineData.map(async item => {
                 try {
-                    // Extract just the required fields for the API
                     const expenseData = JSON.parse(item.body);
+                    console.log('Parsed expense data:', expenseData); // Debug log
+
                     const response = await fetch('/api/expenses/add', {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            Authorization: `Bearer ${item.headers.Authorization}`,
-                        },
+                        headers: item.headers,
                         body: JSON.stringify({
-                            amount: expenseData.amount,
+                            amount: Number(expenseData.amount),
                             description: expenseData.description,
                         }),
                     });
 
-                    if (!response.ok) throw new Error(await response.text());
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        console.error('API Error:', errorData); // Debug log
+                        throw new Error(JSON.stringify(errorData));
+                    }
+
                     await db.delete('offline-mutations', item.id);
                     return true;
                 } catch (error) {

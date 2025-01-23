@@ -8,6 +8,7 @@ import { AlertCircle, CheckCircle, WifiOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { checkDatabaseStatus } from '@/lib/db';
 import { syncOfflineExpenses } from '@/app/offline/sync';
+import { openDB } from 'idb';
 
 export function AddExpenseSection({ onExpenseAdded }) {
     const [status, setStatus] = useState({ type: '', message: '' });
@@ -22,7 +23,6 @@ export function AddExpenseSection({ onExpenseAdded }) {
                 setIsOnline(true);
                 console.log('Device went online, starting sync process...');
 
-                // First, check database status
                 const dbStatus = await checkDatabaseStatus();
                 console.log('Database status before sync:', dbStatus);
 
@@ -32,19 +32,16 @@ export function AddExpenseSection({ onExpenseAdded }) {
                         description: 'Syncing your data...',
                     });
 
-                    // Try direct sync first with error logging
                     try {
                         console.log('Starting direct sync...');
                         const syncResult = await syncOfflineExpenses();
                         console.log('Direct sync completed, result:', syncResult);
 
-                        // Only trigger refresh if sync was successful
                         await new Promise(resolve => setTimeout(resolve, 1000));
                         onExpenseAdded?.();
                     } catch (syncError) {
                         console.error('Direct sync failed with error:', syncError);
 
-                        // Don't auto-refresh on error, let user retry
                         toast({
                             variant: 'destructive',
                             title: 'Sync Failed',
@@ -59,7 +56,6 @@ export function AddExpenseSection({ onExpenseAdded }) {
                             },
                         });
 
-                        // Still try background sync as fallback
                         try {
                             const registration = await navigator.serviceWorker.ready;
                             await registration.sync.register('sync-expenses');
@@ -73,12 +69,11 @@ export function AddExpenseSection({ onExpenseAdded }) {
                 }
             } catch (error) {
                 console.error('Error during online transition:', error);
-                // Prevent auto-refresh on error
                 toast({
                     variant: 'destructive',
                     title: 'Sync Error',
                     description: error.message || 'Failed to sync changes',
-                    duration: 5000, // Keep the message visible longer
+                    duration: 5000,
                 });
             }
         };
@@ -139,35 +134,44 @@ export function AddExpenseSection({ onExpenseAdded }) {
                 throw new Error('Not authenticated');
             }
 
-            const expense = {
-                ...expenseData,
-                token,
-                timestamp: Date.now(),
-                id: crypto.randomUUID(),
-            };
-
             if (!navigator.onLine) {
                 try {
-                    if (navigator.serviceWorker?.controller) {
-                        navigator.serviceWorker.controller.postMessage({
-                            type: 'STORE_OFFLINE_EXPENSE',
-                            expense,
-                        });
+                    const offlineExpense = {
+                        id: crypto.randomUUID(),
+                        url: '/api/expenses/add',
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            Authorization: `Bearer ${token}`,
+                        },
+                        body: JSON.stringify({
+                            amount: expenseData.amount,
+                            description: expenseData.description,
+                        }),
+                    };
 
-                        setStatus({
-                            type: 'info',
-                            message: "You're offline. Expense saved and will sync when you're back online.",
-                        });
+                    const db = await openDB('expenses-offline-db', 1, {
+                        upgrade(db) {
+                            if (!db.objectStoreNames.contains('offline-mutations')) {
+                                db.createObjectStore('offline-mutations', { keyPath: 'id' });
+                            }
+                        },
+                    });
 
-                        toast({
-                            title: 'Expense Saved Offline',
-                            description: "Your expense has been saved locally and will sync when you're back online.",
-                        });
+                    await db.add('offline-mutations', offlineExpense);
 
-                        onExpenseAdded?.();
-                        return;
-                    }
-                    throw new Error('Service worker not available');
+                    setStatus({
+                        type: 'info',
+                        message: "You're offline. Expense saved and will sync when you're back online.",
+                    });
+
+                    toast({
+                        title: 'Expense Saved Offline',
+                        description: "Your expense has been saved locally and will sync when you're back online.",
+                    });
+
+                    onExpenseAdded?.();
+                    return;
                 } catch (offlineError) {
                     console.error('Failed to save offline:', offlineError);
                     throw new Error('Failed to save expense offline');
@@ -180,7 +184,7 @@ export function AddExpenseSection({ onExpenseAdded }) {
                     'Content-Type': 'application/json',
                     Authorization: `Bearer ${token}`,
                 },
-                body: JSON.stringify(expense),
+                body: JSON.stringify(expenseData),
             });
 
             if (!response.ok) {
