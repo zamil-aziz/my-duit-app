@@ -1,55 +1,56 @@
-import withPWAInit from '@ducanh2912/next-pwa';
+// next.config.mjs
+import withPWA from '@ducanh2912/next-pwa';
 
-const pwaConfig = {
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+    reactStrictMode: true,
+};
+
+export default withPWA({
     dest: 'public',
     register: true,
-    cacheOnFrontEndNav: true,
-    aggressiveFrontEndNavCaching: true,
-    reloadOnOnline: false,
-    swcMinify: true,
-    fallbacks: {
-        document: '/~offline',
-    },
+    skipWaiting: true,
+    disable: process.env.NODE_ENV === 'development',
     workboxOptions: {
         runtimeCaching: [
             {
-                urlPattern: /\/api\/expenses/,
+                urlPattern: '/',
                 handler: 'NetworkFirst',
                 options: {
-                    cacheName: 'api-cache',
+                    cacheName: 'start-url',
                     networkTimeoutSeconds: 10,
-                    backgroundSync: {
-                        name: 'expenses-queue',
-                        options: {
-                            maxRetentionTime: 24 * 60,
-                        },
-                    },
                 },
             },
             {
-                urlPattern: /\.(css|js)$/,
+                urlPattern: /\/dashboard/,
+                handler: 'NetworkFirst',
+                options: {
+                    cacheName: 'dashboard-pages',
+                    networkTimeoutSeconds: 10,
+                },
+            },
+            {
+                urlPattern: /^https?.*/,
+                handler: 'NetworkFirst',
+                options: {
+                    cacheName: 'offline-cache',
+                    networkTimeoutSeconds: 10,
+                },
+            },
+            {
+                urlPattern: /\.(?:js|css)$/i,
                 handler: 'StaleWhileRevalidate',
                 options: {
                     cacheName: 'static-resources',
                 },
             },
             {
-                urlPattern: /\/_next\/image/,
+                urlPattern: /\.(?:png|jpg|jpeg|svg|gif|ico)$/i,
                 handler: 'CacheFirst',
                 options: {
-                    cacheName: 'image-cache',
-                    expiration: {
-                        maxEntries: 100,
-                        maxAgeSeconds: 7 * 24 * 60 * 60,
-                    },
+                    cacheName: 'static-images',
                 },
             },
         ],
     },
-};
-
-const withPWA = withPWAInit(pwaConfig);
-
-export default withPWA({
-    reactStrictMode: true,
-});
+})(nextConfig);
