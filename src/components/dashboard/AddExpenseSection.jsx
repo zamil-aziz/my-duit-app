@@ -7,31 +7,12 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle, CheckCircle, WifiOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { checkDatabaseStatus } from '@/lib/db';
+import { syncOfflineExpenses } from '@/app/offline/sync';
 
 export function AddExpenseSection({ onExpenseAdded }) {
     const [status, setStatus] = useState({ type: '', message: '' });
     const [isOnline, setIsOnline] = useState(true);
     const { toast } = useToast();
-
-    const checkDB = async () => {
-        try {
-            const response = await fetch('/api/status');
-            const status = await response.json();
-            if (isMounted) {
-                setStatus({
-                    type: status.isConnected ? 'success' : 'error',
-                    message: status.isConnected ? 'Connected' : 'Disconnected',
-                });
-            }
-        } catch (error) {
-            if (isMounted) {
-                setStatus({
-                    type: 'error',
-                    message: 'Connection failed',
-                });
-            }
-        }
-    };
 
     useEffect(() => {
         setIsOnline(navigator.onLine);

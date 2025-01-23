@@ -20,7 +20,7 @@ const nextConfigFunction = async phase => {
             sw: 'sw.js',
             register: true,
             fallbacks: {
-                document: '/~offline', // Removed /page suffix
+                document: '/offline',
             },
             buildExcludes: [/middleware-manifest\.json$/], // Add this to exclude middleware manifest
             workboxOptions: {
