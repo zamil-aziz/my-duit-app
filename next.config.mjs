@@ -15,6 +15,9 @@ const nextConfigFunction = async phase => {
             reloadOnOnline: true,
             // disable: process.env.NODE_ENV === 'development',
             disable: false,
+            customWorkerSrc: 'worker/index.js',
+            customWorkerDest: 'public',
+            sw: 'sw.js',
             register: true,
             fallbacks: {
                 document: '/~offline', // Removed /page suffix

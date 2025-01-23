@@ -1,178 +1,46 @@
+importScripts('https://storage.googleapis.com/workbox-cdn/releases/6.4.1/workbox-sw.js');
+
 const DB_NAME = 'expenses-offline-db';
 const STORE_NAME = 'offline-mutations';
 const DB_VERSION = 1;
 
-export const initDB = () => {
+// Initialize IndexedDB
+const initDB = () => {
     return new Promise((resolve, reject) => {
-        if (!indexedDB) {
-            reject(new Error('IndexedDB is not supported'));
-            return;
-        }
-
-        console.log('Initializing IndexedDB...');
         const request = indexedDB.open(DB_NAME, DB_VERSION);
 
-        request.onerror = event => {
-            console.error('Database error:', event.target.error);
-            reject(event.target.error);
-        };
-
-        request.onsuccess = event => {
-            const db = event.target.result;
-            console.log('Database opened successfully');
-            console.log('Database name:', db.name);
-            console.log('Object stores:', db.objectStoreNames);
-            resolve(db);
-        };
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve(request.result);
 
         request.onupgradeneeded = event => {
-            console.log('Database upgrade needed');
             const db = event.target.result;
-
             if (!db.objectStoreNames.contains(STORE_NAME)) {
-                console.log('Creating object store:', STORE_NAME);
                 const store = db.createObjectStore(STORE_NAME, {
                     keyPath: 'id',
                     autoIncrement: true,
                 });
-
                 store.createIndex('timestamp', 'timestamp', { unique: false });
                 store.createIndex('synced', 'synced', { unique: false });
                 store.createIndex('retryCount', 'retryCount', { unique: false });
-
-                console.log('Object store created successfully');
             }
         };
-
-        request.onblocked = event => {
-            console.warn('Database upgrade blocked. Please close other tabs.');
-        };
     });
 };
 
-export const addOfflineExpense = async expense => {
-    console.log('Adding offline expense:', expense);
-    const db = await initDB();
+// Add your existing service worker event listeners
+self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', event => event.waitUntil(clients.claim()));
 
-    return new Promise((resolve, reject) => {
-        const transaction = db.transaction([STORE_NAME], 'readwrite');
-        const store = transaction.objectStore(STORE_NAME);
-
-        const serializedExpense = {
-            url: '/api/expenses/add',
-            method: 'POST',
-            headers: [
-                ['Content-Type', 'application/json'],
-                ['Authorization', `Bearer ${expense.token}`],
-            ],
-            body: JSON.stringify({
-                ...expense,
-                amount: parseFloat(expense.amount),
-                timestamp: Date.now(),
-                offlineId: crypto.randomUUID(),
-            }),
-            timestamp: Date.now(),
-            synced: false,
-            retryCount: 0,
-        };
-
-        const request = store.add(serializedExpense);
-
-        request.onsuccess = () => {
-            console.log('Expense saved successfully:', request.result);
-            resolve(request.result);
-        };
-
-        request.onerror = () => {
-            console.error('Error saving expense:', request.error);
-            reject(request.error);
-        };
-
-        transaction.oncomplete = () => {
-            console.log('Transaction completed successfully');
-        };
-
-        transaction.onerror = () => {
-            console.error('Transaction failed:', transaction.error);
-        };
-    });
-};
-
-export const getAllStoredExpenses = async () => {
-    const db = await initDB();
-    const transaction = db.transaction([STORE_NAME], 'readonly');
-    const store = transaction.objectStore(STORE_NAME);
-
-    return new Promise((resolve, reject) => {
-        const request = store.getAll();
-
-        request.onsuccess = () => {
-            const expenses = request.result;
-            console.log('All stored expenses:', expenses);
-            resolve(expenses);
-        };
-
-        request.onerror = () => {
-            console.error('Error reading expenses:', request.error);
-            reject(request.error);
-        };
-    });
-};
-
-export const getExpenseById = async id => {
-    const db = await initDB();
-    const transaction = db.transaction([STORE_NAME], 'readonly');
-    const store = transaction.objectStore(STORE_NAME);
-
-    return new Promise((resolve, reject) => {
-        const request = store.get(id);
-
-        request.onsuccess = () => {
-            console.log(`Expense ${id}:`, request.result);
-            resolve(request.result);
-        };
-
-        request.onerror = () => {
-            console.error('Error reading expense:', request.error);
-            reject(request.error);
-        };
-    });
-};
-
-export const deleteMutation = async id => {
-    const db = await initDB();
-    const tx = db.transaction(STORE_NAME, 'readwrite');
-    const store = tx.objectStore(STORE_NAME);
-
-    return new Promise((resolve, reject) => {
-        const request = store.delete(id);
-        request.onsuccess = () => resolve();
-        request.onerror = () => reject(request.error);
-    });
-};
-
-export const syncOfflineExpenses = async () => {
-    const db = await initDB();
-    const transaction = db.transaction([STORE_NAME], 'readonly');
-    const store = transaction.objectStore(STORE_NAME);
-
+// Update sync function to use your IndexedDB implementation
+async function syncExpenses() {
     try {
+        const db = await initDB();
+        const tx = db.transaction(STORE_NAME, 'readonly');
+        const store = tx.objectStore(STORE_NAME);
         const mutations = await store.index('synced').getAll(false);
-        console.log('Found unsynced mutations:', mutations);
-
-        if (mutations.length === 0) {
-            console.log('No mutations to sync');
-            return { success: true, synced: 0 };
-        }
-
-        let syncedCount = 0;
-        const errors = [];
 
         for (const mutation of mutations) {
             try {
-                console.log('Processing mutation:', mutation);
-                const expenseData = JSON.parse(mutation.body);
-
                 const response = await fetch(mutation.url, {
                     method: mutation.method,
                     headers: Object.fromEntries(mutation.headers),
@@ -180,96 +48,36 @@ export const syncOfflineExpenses = async () => {
                     credentials: 'same-origin',
                 });
 
-                const responseText = await response.text();
-                console.log('Server response:', responseText);
-
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}, response: ${responseText}`);
-                }
-
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                 await deleteMutation(mutation.id);
-                console.log('Successfully synced and deleted mutation:', mutation.id);
-                syncedCount++;
+
+                const clients = await self.clients.matchAll();
+                clients.forEach(client => {
+                    client.postMessage({
+                        type: 'SYNC_COMPLETED',
+                        mutation: {
+                            id: mutation.id,
+                            method: mutation.method,
+                        },
+                    });
+                });
             } catch (error) {
-                console.error('Error processing mutation:', error);
-                errors.push({
-                    mutationId: mutation.id,
-                    error: error.message,
-                });
+                console.error('Sync failed for mutation:', mutation.id, error);
             }
         }
-
-        if (errors.length > 0) {
-            throw new Error(`Failed to sync ${errors.length} mutations. First error: ${errors[0].error}`);
-        }
-
-        return { success: true, synced: syncedCount };
     } catch (error) {
-        console.error('Fatal sync error:', error);
-        throw error;
+        console.error('Sync process failed:', error);
     }
-};
+}
 
-export const checkDatabaseStatus = async () => {
-    try {
-        const db = await initDB();
-        const transaction = db.transaction([STORE_NAME], 'readonly');
-        const store = transaction.objectStore(STORE_NAME);
-        const countRequest = store.count();
-
-        return new Promise(resolve => {
-            countRequest.onsuccess = () => {
-                resolve({
-                    status: 'ok',
-                    count: countRequest.result,
-                    dbName: db.name,
-                    dbVersion: db.version,
-                    stores: Array.from(db.objectStoreNames),
-                });
-            };
-        });
-    } catch (error) {
-        return {
-            status: 'error',
-            error: error.message,
-        };
+self.addEventListener('sync', event => {
+    if (event.tag === 'sync-expenses') {
+        event.waitUntil(syncExpenses());
     }
-};
+});
 
-export const clearSyncedExpenses = async () => {
-    const db = await initDB();
-    const transaction = db.transaction([STORE_NAME], 'readwrite');
-    const store = transaction.objectStore(STORE_NAME);
-
-    return new Promise((resolve, reject) => {
-        const request = store.index('synced').getAll(true);
-
-        request.onsuccess = async () => {
-            const syncedExpenses = request.result;
-            console.log('Found synced expenses to clear:', syncedExpenses.length);
-
-            for (const expense of syncedExpenses) {
-                await store.delete(expense.id);
-            }
-
-            resolve(syncedExpenses.length);
-        };
-
-        request.onerror = () => {
-            console.error('Error clearing synced expenses:', request.error);
-            reject(request.error);
-        };
-    });
-};
-
-export const cleanupDatabase = async () => {
-    try {
-        const clearedCount = await clearSyncedExpenses();
-        console.log(`Cleared ${clearedCount} synced expenses`);
-
-        const status = await checkDatabaseStatus();
-        console.log('Database status after cleanup:', status);
-    } catch (error) {
-        console.error('Error during database cleanup:', error);
+self.addEventListener('message', event => {
+    if (event.data?.type === 'TRIGGER_SYNC') {
+        event.waitUntil(syncExpenses());
     }
-};
+});

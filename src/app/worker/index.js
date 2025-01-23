@@ -1,89 +1,42 @@
-const STORE_NAME = 'expenses-offline-db';
+const DB_NAME = 'expenses-offline-db';
+const STORE_NAME = 'offline-mutations';
 
-// Install event - set up any caching needed
-self.addEventListener('install', event => {
-    self.skipWaiting();
-});
+// Initialize IndexedDB
+async function openDB() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, 1);
 
-// Activate event - clean up old caches
-self.addEventListener('activate', event => {
-    event.waitUntil(clients.claim());
-});
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve(request.result);
 
-// Listen for sync events
-self.addEventListener('sync', event => {
-    if (event.tag === 'sync-expenses') {
-        event.waitUntil(syncExpenses());
-    }
-});
-
-// Listen for messages from the client
-self.addEventListener('message', event => {
-    if (event.data && event.data.type === 'TRIGGER_SYNC') {
-        event.waitUntil(syncExpenses());
-    }
-});
-
-// Function to handle syncing expenses
-async function syncExpenses() {
-    try {
-        const db = await openDB();
-        const mutations = await getOfflineMutations(db);
-
-        if (!mutations.length) return;
-
-        const successfulSyncs = [];
-
-        for (const mutation of mutations) {
-            try {
-                if (mutation.synced) continue;
-
-                const response = await fetch(mutation.url, {
-                    method: mutation.method,
-                    headers: Object.fromEntries(mutation.headers),
-                    body: mutation.body,
-                });
-
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-
-                // Add to successful syncs
-                successfulSyncs.push(mutation.id);
-
-                // Notify clients
-                const clients = await self.clients.matchAll();
-                clients.forEach(client => {
-                    client.postMessage({
-                        type: 'SYNC_COMPLETED',
-                        mutation: {
-                            id: mutation.id,
-                            method: mutation.method,
-                        },
-                    });
-                });
-            } catch (error) {
-                console.error('Sync failed for mutation:', mutation.id, error);
+        request.onupgradeneeded = event => {
+            const db = event.target.result;
+            if (!db.objectStoreNames.contains(STORE_NAME)) {
+                const store = db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
+                store.createIndex('synced', 'synced', { unique: false });
             }
-        }
-
-        // Delete all successfully synced mutations
-        for (const id of successfulSyncs) {
-            await deleteMutation(db, id);
-        }
-
-        // If any syncs were successful, notify clients to refresh data
-        if (successfulSyncs.length > 0) {
-            const clients = await self.clients.matchAll();
-            clients.forEach(client => {
-                client.postMessage({
-                    type: 'REFRESH_DATA',
-                });
-            });
-        }
-    } catch (error) {
-        console.error('Sync process failed:', error);
-    }
+        };
+    });
 }
 
-// ... rest of your IndexedDB helper functions remain the same
+async function getOfflineMutations(db) {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readonly');
+        const store = tx.objectStore(STORE_NAME);
+        const request = store.getAll();
+
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+    });
+}
+
+async function deleteMutation(db, id) {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const store = tx.objectStore(STORE_NAME);
+        const request = store.delete(id);
+
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+    });
+}
