@@ -1,5 +1,3 @@
-import { openDB } from 'idb';
-
 export async function syncOfflineExpenses() {
     try {
         const db = await openDB('expenses-offline-db', 1);
@@ -8,14 +6,21 @@ export async function syncOfflineExpenses() {
         const results = await Promise.allSettled(
             offlineData.map(async item => {
                 try {
-                    const response = await fetch(item.url, {
-                        method: item.method,
-                        headers: new Headers(item.headers),
-                        body: item.body,
+                    // Extract just the required fields for the API
+                    const expenseData = JSON.parse(item.body);
+                    const response = await fetch('/api/expenses/add', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            Authorization: `Bearer ${item.headers.Authorization}`,
+                        },
+                        body: JSON.stringify({
+                            amount: expenseData.amount,
+                            description: expenseData.description,
+                        }),
                     });
 
                     if (!response.ok) throw new Error(await response.text());
-
                     await db.delete('offline-mutations', item.id);
                     return true;
                 } catch (error) {
@@ -25,10 +30,10 @@ export async function syncOfflineExpenses() {
             })
         );
 
-        const succeeded = results.filter(r => r.status === 'fulfilled').length;
-        const failed = results.filter(r => r.status === 'rejected').length;
-
-        return { succeeded, failed };
+        return {
+            succeeded: results.filter(r => r.status === 'fulfilled').length,
+            failed: results.filter(r => r.status === 'rejected').length,
+        };
     } catch (error) {
         console.error('Sync error:', error);
         throw error;

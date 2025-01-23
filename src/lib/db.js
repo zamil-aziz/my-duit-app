@@ -6,10 +6,9 @@ export const prisma = new PrismaClient({
 
 export async function checkDatabaseStatus() {
     try {
-        await prisma.$queryRaw`SELECT 1`;
-        return { isConnected: true, count: await getOfflineCount() };
+        const response = await fetch('/api/offline-status');
+        return await response.json();
     } catch (error) {
-        console.error('Database check failed:', error);
         return { isConnected: false, count: 0 };
     }
 }
