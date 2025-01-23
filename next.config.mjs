@@ -15,7 +15,7 @@ const nextConfigFunction = async phase => {
             reloadOnOnline: true,
             // disable: process.env.NODE_ENV === 'development',
             disable: false,
-            customWorkerSrc: 'worker/index.js',
+            customWorkerSrc: 'public/custom-sw.js',
             customWorkerDest: 'public',
             sw: 'sw.js',
             register: true,

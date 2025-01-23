@@ -5,13 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AddExpense } from './AddExpense';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle, CheckCircle, WifiOff } from 'lucide-react';
-import {
-    addOfflineExpense,
-    checkDatabaseStatus,
-    getAllStoredExpenses,
-    getExpenseById,
-    syncOfflineExpenses,
-} from '@/lib/indexedDB';
 import { useToast } from '@/hooks/use-toast';
 
 export function AddExpenseSection({ onExpenseAdded }) {
@@ -138,21 +131,6 @@ export function AddExpenseSection({ onExpenseAdded }) {
         window.addEventListener('online', handleOnline);
         window.addEventListener('offline', handleOffline);
         navigator.serviceWorker?.addEventListener('message', handleMessage);
-
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker
-                .register('/sw.js')
-                .then(async registration => {
-                    if (navigator.onLine) {
-                        try {
-                            await registration.sync.register('sync-expenses');
-                        } catch (error) {
-                            console.error('Failed to register sync:', error);
-                        }
-                    }
-                })
-                .catch(console.error);
-        }
 
         return () => {
             window.removeEventListener('online', handleOnline);
