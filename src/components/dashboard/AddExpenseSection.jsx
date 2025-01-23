@@ -155,33 +155,26 @@ export function AddExpenseSection({ onExpenseAdded }) {
 
             if (!navigator.onLine) {
                 try {
-                    const savedId = await addOfflineExpense(expense);
-                    console.log('Expense saved with ID:', savedId);
-
-                    // Verify the saved expense
-                    const savedExpense = await getExpenseById(savedId);
-                    console.log('Verified saved expense:', savedExpense);
-
-                    // List all stored expenses
-                    const allExpenses = await getAllStoredExpenses();
-                    console.log('All stored expenses:', allExpenses);
-
-                    setStatus({
-                        type: 'info',
-                        message: "You're offline. Expense saved and will sync when you're back online.",
-                    });
-
-                    toast({
-                        title: 'Expense Saved Offline',
-                        description: "Your expense has been saved locally and will sync when you're back online.",
-                    });
-
                     if (navigator.serviceWorker?.controller) {
-                        navigator.serviceWorker.controller.postMessage({ type: 'TRIGGER_SYNC' });
-                    }
+                        navigator.serviceWorker.controller.postMessage({
+                            type: 'STORE_OFFLINE_EXPENSE',
+                            expense,
+                        });
 
-                    onExpenseAdded?.();
-                    return;
+                        setStatus({
+                            type: 'info',
+                            message: "You're offline. Expense saved and will sync when you're back online.",
+                        });
+
+                        toast({
+                            title: 'Expense Saved Offline',
+                            description: "Your expense has been saved locally and will sync when you're back online.",
+                        });
+
+                        onExpenseAdded?.();
+                        return;
+                    }
+                    throw new Error('Service worker not available');
                 } catch (offlineError) {
                     console.error('Failed to save offline:', offlineError);
                     throw new Error('Failed to save expense offline');
