@@ -1,4 +1,3 @@
-'use client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, Trash2, Edit2 } from 'lucide-react';
@@ -37,26 +36,31 @@ export function FullTransactionList({ transactions, onBack, onTransactionDeleted
 
     const formatDate = dateString => {
         const date = new Date(dateString);
-
         const formattedDate = date.toLocaleDateString('en-US', {
             day: 'numeric',
             month: 'short',
             year: 'numeric',
         });
-
         const formattedTime = date.toLocaleTimeString('en-US', {
             hour: 'numeric',
             minute: '2-digit',
             hour12: true,
         });
-
         return `${formattedDate}, ${formattedTime}`;
     };
 
     const handleEdit = async () => {
+        if (!navigator.onLine) {
+            toast({
+                variant: 'destructive',
+                title: 'Offline Mode',
+                description: 'Edit function is not available while offline. Please try again when connected.',
+            });
+            return;
+        }
+
         try {
             const token = localStorage.getItem('token');
-
             if (!token) {
                 toast({
                     variant: 'destructive',
@@ -80,20 +84,14 @@ export function FullTransactionList({ transactions, onBack, onTransactionDeleted
             });
 
             const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.error || 'Failed to update expense');
-            }
+            if (!response.ok) throw new Error(data.error || 'Failed to update expense');
 
             toast({
                 title: 'Success',
                 description: 'Transaction updated successfully!',
             });
 
-            if (onTransactionUpdated) {
-                onTransactionUpdated(data);
-            }
-
+            if (onTransactionUpdated) onTransactionUpdated(data);
             setEditingTransaction(null);
         } catch (error) {
             console.error('Error updating expense:', error);
@@ -106,10 +104,18 @@ export function FullTransactionList({ transactions, onBack, onTransactionDeleted
     };
 
     const handleDelete = async id => {
+        if (!navigator.onLine) {
+            toast({
+                variant: 'destructive',
+                title: 'Offline Mode',
+                description: 'Delete function is not available while offline. Please try again when connected.',
+            });
+            return;
+        }
+
         try {
             setDeletingId(id);
             const token = localStorage.getItem('token');
-
             if (!token) {
                 toast({
                     variant: 'destructive',
@@ -128,19 +134,14 @@ export function FullTransactionList({ transactions, onBack, onTransactionDeleted
             });
 
             const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.error || 'Failed to delete expense');
-            }
+            if (!response.ok) throw new Error(data.error || 'Failed to delete expense');
 
             toast({
                 title: 'Success',
                 description: 'Transaction deleted successfully!',
             });
 
-            if (onTransactionDeleted) {
-                onTransactionDeleted(id);
-            }
+            if (onTransactionDeleted) onTransactionDeleted(id);
         } catch (error) {
             console.error('Error deleting expense:', error);
             toast({
@@ -238,7 +239,6 @@ export function FullTransactionList({ transactions, onBack, onTransactionDeleted
                             </div>
                         ))}
                     </div>
-
                     <Dialog
                         open={editingTransaction !== null}
                         onOpenChange={open => !open && setEditingTransaction(null)}
