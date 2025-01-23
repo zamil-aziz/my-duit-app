@@ -13,34 +13,25 @@ export function AddExpenseSection({ onExpenseAdded }) {
     const [isOnline, setIsOnline] = useState(true);
     const { toast } = useToast();
 
-    useEffect(() => {
-        let isMounted = true;
-
-        const checkDB = async () => {
-            try {
-                const status = await checkDatabaseStatus();
-                if (isMounted) {
-                    console.log('Database status:', status);
-                    setStatus({
-                        type: status.isConnected ? 'success' : 'error',
-                        message: status.isConnected ? 'Connected' : 'Disconnected',
-                    });
-                }
-            } catch (error) {
-                if (isMounted) {
-                    setStatus({
-                        type: 'error',
-                        message: 'Connection failed',
-                    });
-                }
+    const checkDB = async () => {
+        try {
+            const response = await fetch('/api/status');
+            const status = await response.json();
+            if (isMounted) {
+                setStatus({
+                    type: status.isConnected ? 'success' : 'error',
+                    message: status.isConnected ? 'Connected' : 'Disconnected',
+                });
             }
-        };
-
-        checkDB();
-        return () => {
-            isMounted = false;
-        };
-    }, []);
+        } catch (error) {
+            if (isMounted) {
+                setStatus({
+                    type: 'error',
+                    message: 'Connection failed',
+                });
+            }
+        }
+    };
 
     useEffect(() => {
         setIsOnline(navigator.onLine);
