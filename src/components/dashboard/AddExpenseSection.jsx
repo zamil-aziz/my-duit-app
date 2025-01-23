@@ -6,6 +6,7 @@ import { AddExpense } from './AddExpense';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle, CheckCircle, WifiOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { checkDatabaseStatus } from '@/lib/db';
 
 export function AddExpenseSection({ onExpenseAdded }) {
     const [status, setStatus] = useState({ type: '', message: '' });
@@ -13,12 +14,32 @@ export function AddExpenseSection({ onExpenseAdded }) {
     const { toast } = useToast();
 
     useEffect(() => {
+        let isMounted = true;
+
         const checkDB = async () => {
-            const status = await checkDatabaseStatus();
-            console.log('Database status:', status);
+            try {
+                const status = await checkDatabaseStatus();
+                if (isMounted) {
+                    console.log('Database status:', status);
+                    setStatus({
+                        type: status.isConnected ? 'success' : 'error',
+                        message: status.isConnected ? 'Connected' : 'Disconnected',
+                    });
+                }
+            } catch (error) {
+                if (isMounted) {
+                    setStatus({
+                        type: 'error',
+                        message: 'Connection failed',
+                    });
+                }
+            }
         };
 
         checkDB();
+        return () => {
+            isMounted = false;
+        };
     }, []);
 
     useEffect(() => {
