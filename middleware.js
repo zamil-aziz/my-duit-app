@@ -1,6 +1,3 @@
-import { NextResponse } from 'next/server';
-import { jwtVerify } from 'jose';
-
 export async function middleware(request) {
     const token = request.cookies.get('token');
 
@@ -11,7 +8,7 @@ export async function middleware(request) {
     try {
         const verified = await jwtVerify(token.value, new TextEncoder().encode(process.env.JWT_SECRET));
 
-        if (request.nextUrl.pathname === '/') {
+        if (verified && request.nextUrl.pathname === '/') {
             return NextResponse.redirect(new URL('/dashboard', request.url));
         }
     } catch {
@@ -20,7 +17,3 @@ export async function middleware(request) {
 
     return NextResponse.next();
 }
-
-export const config = {
-    matcher: ['/', '/dashboard'],
-};
