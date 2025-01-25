@@ -11,6 +11,12 @@ export function AddExpense({ onSubmit }) {
     const [description, setDescription] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    const handleAmountChange = e => {
+        const value = e.target.value.replace(/\D/g, '');
+        const formattedValue = (parseInt(value) / 100).toFixed(2);
+        setAmount(value ? formattedValue : '');
+    };
+
     const handleSubmit = async e => {
         e.preventDefault();
 
@@ -19,7 +25,6 @@ export function AddExpense({ onSubmit }) {
         setIsSubmitting(true);
         try {
             await onSubmit?.({ amount: parseFloat(amount), description });
-            // Clear form on success
             setAmount('');
             setDescription('');
         } finally {
@@ -35,12 +40,10 @@ export function AddExpense({ onSubmit }) {
                 </Label>
                 <Input
                     id='amount'
-                    type='number'
-                    step='0.01'
-                    min='0'
+                    type='text'
                     placeholder='0.00'
                     value={amount}
-                    onChange={e => setAmount(e.target.value)}
+                    onChange={handleAmountChange}
                     className='mt-1 bg-gray-700 border-gray-600 text-white placeholder-gray-400'
                     required
                 />
