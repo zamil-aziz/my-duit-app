@@ -164,12 +164,14 @@ export function FullTransactionList({ transactions, onBack, onTransactionDeleted
 
     return (
         <Card className='border-0 bg-gray-900/50 backdrop-blur-sm'>
-            <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
-                <div className='flex items-center space-x-2'>
+            <CardHeader className='flex flex-row items-center justify-center pb-2 relative'>
+                <div className='absolute left-0'>
                     <Button variant='ghost' size='sm' className='text-gray-400 hover:text-white' onClick={onBack}>
                         <ChevronLeft className='w-4 h-4 mr-1' />
                         Back
                     </Button>
+                </div>
+                <div className='text-center'>
                     <CardTitle className='text-lg font-semibold text-white'>All Transactions</CardTitle>
                 </div>
             </CardHeader>
