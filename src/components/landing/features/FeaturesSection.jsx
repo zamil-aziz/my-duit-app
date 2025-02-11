@@ -23,7 +23,9 @@ export function FeaturesSection() {
     return (
         <section className='px-4 py-12 border-t border-gray-800/50'>
             <h2 className='text-xl font-semibold mb-8 text-center'>Why Choose Us?</h2>
-            <div className='space-y-6 max-w-md mx-auto'>
+            <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto'>
+                {' '}
+                {/* Added grid */}
                 {features.map((feature, index) => (
                     <FeatureCard key={index} {...feature} />
                 ))}
