@@ -49,6 +49,10 @@ export function FullTransactionList({ transactions, onBack, onTransactionDeleted
         return `${formattedDate}, ${formattedTime}`;
     };
 
+    const formatAmount = amount => {
+        return `RM${Number(amount).toFixed(2)}`;
+    };
+
     const handleEdit = async () => {
         if (!navigator.onLine) {
             toast({
@@ -195,7 +199,7 @@ export function FullTransactionList({ transactions, onBack, onTransactionDeleted
                                 <p className='text-[11px] text-white col-span-3 truncate leading-relaxed'>
                                     {transaction.description}
                                 </p>
-                                <p className='text-[11px] text-white col-span-2'>RM {transaction.amount}</p>
+                                <p className='text-[11px] text-white col-span-2'>{formatAmount(transaction.amount)}</p>
                                 <div className='col-span-2 flex space-x-1'>
                                     <Button
                                         variant='ghost'
